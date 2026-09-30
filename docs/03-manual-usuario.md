@@ -1,9 +1,9 @@
 # Manual de Usuario — Sistema de Facturación e Inventario
 
-> La aplicación no tiene una barra de navegación ni menú: se usa
-> escribiendo la URL directamente en el navegador (por ejemplo
-> `http://localhost:5173/invoices/new`). Este manual indica la ruta exacta
-> de cada pantalla.
+> La aplicación tiene una barra de navegación fija en la parte superior de
+> cada pantalla (excepto en `/login`), con enlaces a las secciones
+> disponibles según el rol, el usuario conectado y el botón para cerrar
+> sesión. Este manual también indica la ruta exacta de cada pantalla.
 
 ## 1. Iniciar sesión (`/login`)
 
@@ -27,30 +27,43 @@ por seguridad). Al iniciar sesión correctamente, se redirige a la página
 principal (`/`).
 
 La sesión se guarda en el navegador (almacenamiento local) y se mantiene
-mientras el token no expire (8 horas por defecto) o mientras no se borre
-manualmente. **No hay botón de "cerrar sesión" en la interfaz** — para
-salir de la sesión, hay que borrar el almacenamiento local del sitio
-(por ejemplo, desde las herramientas de desarrollador del navegador,
-o usando una ventana privada/incógnito para entrar con otra cuenta).
+mientras el token no expire (8 horas por defecto) o mientras no se cierre
+sesión manualmente con el botón **Cerrar sesión** de la barra de
+navegación.
 
-## 2. Página principal (`/`)
+## 2. Barra de navegación
 
-Solo muestra el título "Sistema de Facturación". No tiene accesos directos
-a las demás pantallas; hay que navegar a ellas escribiendo la URL.
+Visible en todas las pantallas protegidas (es decir, en todas excepto
+`/login`). Muestra:
 
-## 3. Administrador — gestionar productos e inventario (`/products`)
+- El nombre del sistema ("Sistema de Facturación").
+- Enlaces a **Inicio** (`/`), **Nueva factura** (`/invoices/new`) e
+  **Historial** (`/invoices`), disponibles para ambos roles.
+- Enlace a **Productos** (`/products`), visible únicamente para el rol
+  **admin** (el vendedor no ve este enlace, ya que no tiene acceso a esa
+  pantalla).
+- El usuario conectado y su rol (por ejemplo, "admin (admin)").
+- El botón **Cerrar sesión**, que termina la sesión y regresa a la
+  pantalla de login.
+
+## 3. Página principal (`/`)
+
+Solo muestra el título "Sistema de Facturación". Para ir a las demás
+pantallas se usan los enlaces de la barra de navegación.
+
+## 4. Administrador — gestionar productos e inventario (`/products`)
 
 Pantalla exclusiva del rol **admin**. Si un vendedor intenta entrar a esta
 URL, es redirigido automáticamente a `/`.
 
-### 3.1 Ver el catálogo
+### 4.1 Ver el catálogo
 
 La tabla de productos muestra: **Nombre**, **SKU**, **Categoría**,
 **Precio**, **Stock** y **Acciones**. El stock se muestra como una
 etiqueta: verde con el número disponible, o roja con el texto **"Sin
 stock"** cuando llega a 0.
 
-### 3.2 Crear un producto
+### 4.2 Crear un producto
 
 1. Clic en **Nuevo producto**.
 2. Completar el formulario: **Nombre**, **SKU**, **Precio**, **Stock**
@@ -66,7 +79,7 @@ Validaciones:
   **"El SKU ya existe"** directamente junto al campo SKU (no como un
   error general).
 
-### 3.3 Editar un producto
+### 4.3 Editar un producto
 
 1. Clic en **Editar** en la fila del producto.
 2. El mismo formulario aparece con los valores actuales cargados.
@@ -82,13 +95,13 @@ como duplicado).
 > la práctica, para ajustar el inventario manualmente hay que editar el
 > producto y cambiar el campo **Stock** al valor final deseado.
 
-### 3.4 Eliminar un producto
+### 4.4 Eliminar un producto
 
 Clic en **Eliminar** en la fila del producto. El navegador pide
 confirmación ("¿Eliminar el producto "{nombre}"?"); si se confirma, el
 producto se borra de la lista.
 
-## 4. Ambos roles — generar una factura (`/invoices/new`)
+## 5. Ambos roles — generar una factura (`/invoices/new`)
 
 Disponible para **admin** y **vendedor**.
 
@@ -122,7 +135,7 @@ el número de factura (formato `FAC-000001`) y el total, y el formulario se
 limpia para la siguiente venta. El stock de los productos vendidos queda
 descontado de inmediato.
 
-## 5. Ambos roles — historial de facturas (`/invoices`)
+## 6. Ambos roles — historial de facturas (`/invoices`)
 
 Disponible para **admin** y **vendedor**, pero con alcance distinto:
 
@@ -134,7 +147,7 @@ La tabla muestra: **No. Factura**, **Cliente**, **NIT**, **Fecha**,
 **Vendedor** (usuario que generó la factura) y **Total**. Si no hay
 facturas para mostrar, aparece el texto "No hay facturas registradas."
 
-## 6. Mensajes de carga y de error
+## 7. Mensajes de carga y de error
 
 Mientras se cargan datos (productos, facturas), se muestra un indicador de
 carga. Los errores devueltos por el backend (por ejemplo, sesión expirada,

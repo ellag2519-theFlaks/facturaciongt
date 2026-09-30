@@ -1,4 +1,5 @@
 import { Navigate, Outlet } from 'react-router-dom'
+import Navbar from './Navbar'
 import { useAuth } from '../hooks/useAuth'
 
 function ProtectedRoute({ roles }) {
@@ -12,7 +13,12 @@ function ProtectedRoute({ roles }) {
     return <Navigate to="/" replace />
   }
 
-  return <Outlet />
+  return (
+    <>
+      <Navbar />
+      <Outlet />
+    </>
+  )
 }
 
 export default ProtectedRoute

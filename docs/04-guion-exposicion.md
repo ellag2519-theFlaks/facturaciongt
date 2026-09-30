@@ -97,8 +97,8 @@ end-to-end con Playwright controlando un navegador real:
 1. **Login administrador** (`admin` / `admin123`) en `/login`.
 2. Ir a `/products` y crear un producto nuevo con stock, por ejemplo,
    `5` unidades.
-3. **Cerrar sesión** (borrar el almacenamiento local o abrir una ventana
-   privada) e iniciar sesión como **vendedor** (`vendedor` / `vendedor123`).
+3. Clic en **Cerrar sesión** (en la barra de navegación) e iniciar sesión
+   como **vendedor** (`vendedor` / `vendedor123`).
 4. Ir a `/invoices/new`, agregar ese producto con cantidad `2`, mostrar
    cómo se calculan subtotal, IVA 12% y total en vivo, y crear la factura.
 5. Volver a `/products` (como admin) y mostrar que el stock bajó de `5` a
