@@ -62,6 +62,19 @@ def save_evidence(page, test_name: str, step_name: str) -> str:
     return relative_path
 
 
+def pytest_configure(config):
+    """Start each pytest invocation with a clean results.json.
+
+    pytest_runtest_makereport below only ever appends, so without this the
+    file grows across separate runs (e.g. re-running the suite during
+    development, or the full Task 15 suite run) and Task 16's PPTX generator
+    -- whose sole source of truth this file is -- would see stale/duplicate
+    lines from earlier invocations mixed in with the current run's results.
+    """
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    RESULTS_FILE.write_text("", encoding="utf-8")
+
+
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     outcome = yield
