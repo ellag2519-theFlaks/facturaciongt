@@ -50,3 +50,8 @@ test('the owning vendedor can fetch their own invoice by id', async () => {
   const res = await request(app).get(`/api/invoices/${vendedorInvoiceId}`).set('Authorization', `Bearer ${vendedorToken}`)
   assert.equal(res.status, 200)
 })
+
+test('invoice detail includes the creating user\'s username', async () => {
+  const res = await request(app).get(`/api/invoices/${vendedorInvoiceId}`).set('Authorization', `Bearer ${vendedorToken}`)
+  assert.equal(res.body.created_by_username, 'vendedor')
+})

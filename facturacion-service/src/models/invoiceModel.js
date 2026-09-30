@@ -54,12 +54,18 @@ function insertInvoiceItem(invoiceId, { product_id, product_name, quantity, unit
 }
 
 /**
- * Finds a single invoice by id, including its items.
+ * Finds a single invoice by id, including its items and the creating
+ * user's username as created_by_username (created_by keeps the raw id).
  * @param {number} id
  * @returns {object|undefined}
  */
 export function findById(id) {
-  const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(id)
+  const invoice = db.prepare(`
+    SELECT invoices.*, users.username AS created_by_username
+    FROM invoices
+    JOIN users ON invoices.created_by = users.id
+    WHERE invoices.id = ?
+  `).get(id)
   if (!invoice) return undefined
 
   const items = db.prepare('SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id').all(id)

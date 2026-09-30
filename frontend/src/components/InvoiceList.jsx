@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { formatCurrency } from '../utils/formatCurrency'
 import { formatDate } from '../utils/formatDate'
 
@@ -16,6 +17,7 @@ function InvoiceList({ invoices }) {
           <th className="py-2 pr-4 font-medium">Fecha</th>
           <th className="py-2 pr-4 font-medium">Vendedor</th>
           <th className="py-2 pr-4 font-medium">Total</th>
+          <th className="py-2 pr-4 font-medium">Detalle</th>
         </tr>
       </thead>
       <tbody>
@@ -27,6 +29,14 @@ function InvoiceList({ invoices }) {
             <td className="py-2 pr-4 text-gray-600">{formatDate(invoice.created_at)}</td>
             <td className="py-2 pr-4 text-gray-600">{invoice.created_by_username}</td>
             <td className="py-2 pr-4 text-gray-800">{formatCurrency(invoice.total)}</td>
+            <td className="py-2 pr-4">
+              <Link
+                to={`/invoices/${invoice.id}`}
+                className="text-sm font-medium text-blue-600 hover:text-blue-800"
+              >
+                Ver detalle
+              </Link>
+            </td>
           </tr>
         ))}
       </tbody>

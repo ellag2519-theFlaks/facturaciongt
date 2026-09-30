@@ -1,15 +1,26 @@
 import { useState } from 'react'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingSpinner from '../components/LoadingSpinner'
+import Pagination from '../components/Pagination'
 import ProductForm from '../components/ProductForm'
 import ProductList from '../components/ProductList'
+import { usePaginatedSearch } from '../hooks/usePaginatedSearch'
 import { useProducts } from '../hooks/useProducts'
+import { formatCurrency } from '../utils/formatCurrency'
+
+function getSearchableText(product) {
+  return [product.name, product.sku, product.category, formatCurrency(product.price), product.stock].join(' ')
+}
 
 function ProductsPage() {
   const { products, loading, error, create, update, remove } = useProducts()
   const [isCreating, setIsCreating] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [deleteError, setDeleteError] = useState(null)
+  const { searchTerm, setSearchTerm, page, setPage, totalPages, pageItems } = usePaginatedSearch(
+    products,
+    getSearchableText,
+  )
 
   async function handleCreate(data) {
     await create(data)
@@ -92,7 +103,17 @@ function ProductsPage() {
         </div>
       ) : (
         <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <ProductList products={products} onEdit={handleEdit} onDelete={handleDelete} />
+          <div className="mb-4">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Buscar por nombre, SKU, categoría..."
+              className="w-full max-w-sm rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <ProductList products={pageItems} onEdit={handleEdit} onDelete={handleDelete} />
+          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
         </div>
       )}
     </div>
