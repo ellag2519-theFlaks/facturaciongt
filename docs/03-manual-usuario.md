@@ -101,6 +101,13 @@ Clic en **Eliminar** en la fila del producto. El navegador pide
 confirmación ("¿Eliminar el producto "{nombre}"?"); si se confirma, el
 producto se borra de la lista.
 
+> **Productos ya facturados:** si el producto aparece en al menos una
+> factura existente, el borrado se rechaza con un error 409
+> (`PRODUCT_IN_USE`, "No se puede eliminar un producto que ya ha sido
+> facturado") para no romper el historial de facturación. En ese caso no
+> hay forma de eliminarlo desde la interfaz; si es necesario descontinuarlo,
+> ajustar su stock a 0 en vez de borrarlo.
+
 ## 5. Ambos roles — generar una factura (`/invoices/new`)
 
 Disponible para **admin** y **vendedor**.

@@ -14,6 +14,9 @@ function validateProductData({ name, sku, price, stock }) {
   if (typeof stock !== 'number' || stock < 0) {
     throw new AppError(400, 'VALIDATION_ERROR', 'El stock no puede ser negativo')
   }
+  if (!Number.isInteger(stock)) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'El stock debe ser un número entero')
+  }
 }
 
 function assertNoSkuCollision(sku, excludeId = null) {
@@ -76,11 +79,17 @@ export function updateProduct(id, data) {
 }
 
 /**
- * Deletes a product by id, or throws 404.
+ * Deletes a product by id, or throws 404 / 409 if it has already been
+ * invoiced (invoice_items.product_id references it with no ON DELETE
+ * clause, so allowing the delete would either fail with a raw SQLite FK
+ * error or silently orphan invoice history).
  * @param {number} id
  */
 export function deleteProduct(id) {
   getProductOrThrow(id)
+  if (productModel.hasInvoiceReferences(id)) {
+    throw new AppError(409, 'PRODUCT_IN_USE', 'No se puede eliminar un producto que ya ha sido facturado')
+  }
   productModel.remove(id)
 }
 
@@ -96,6 +105,9 @@ export function adjustStockManually(id, delta) {
 
   if (typeof delta !== 'number' || Number.isNaN(delta)) {
     throw new AppError(400, 'VALIDATION_ERROR', 'El ajuste de stock debe ser un número')
+  }
+  if (!Number.isInteger(delta)) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'El ajuste de stock debe ser un número entero')
   }
   if (product.stock + delta < 0) {
     throw new AppError(400, 'VALIDATION_ERROR', 'El stock no puede quedar negativo')

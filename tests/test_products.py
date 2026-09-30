@@ -125,5 +125,8 @@ def test_vendedor_redirected_from_products(page):
     save_evidence(page, "test_vendedor_redirected_from_products", "01_redirected_home")
 
     assert page.url == f"{BASE_URL}/"
-    assert page.get_by_text("Sistema de Facturación").is_visible()
+    # Navbar (added in Task 18) also renders the brand text "Sistema de
+    # Facturación", so a plain get_by_text match is ambiguous (Playwright
+    # strict-mode violation). Scope to the HomePage's <h1> specifically.
+    assert page.get_by_role("heading", name="Sistema de Facturación").is_visible()
     assert page.get_by_text("Productos", exact=True).count() == 0

@@ -9,7 +9,7 @@ function round2(value) {
   return Math.round(value * 100) / 100
 }
 
-function InvoiceForm({ products }) {
+function InvoiceForm({ products, onInvoiceCreated }) {
   const [customerName, setCustomerName] = useState('')
   const [customerNit, setCustomerNit] = useState('')
   const [cart, setCart] = useState([])
@@ -98,6 +98,12 @@ function InvoiceForm({ products }) {
       setCart([])
       setCustomerName('')
       setCustomerNit('')
+      // Refresh product stock so the picker (and the stock-exceeded guard)
+      // reflect the sale immediately instead of the pre-sale quantities.
+      // Not awaited: the invoice is already created and the success banner
+      // already shown, so this shouldn't hold isSubmitting (and its inline
+      // spinner, also role="status") up and overlapping with that banner.
+      onInvoiceCreated?.()
     } catch (err) {
       setError(err.message)
     } finally {

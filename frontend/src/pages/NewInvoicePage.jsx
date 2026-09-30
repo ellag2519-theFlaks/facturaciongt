@@ -1,10 +1,22 @@
+import { useEffect, useState } from 'react'
 import ErrorMessage from '../components/ErrorMessage'
 import InvoiceForm from '../components/InvoiceForm'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { useProducts } from '../hooks/useProducts'
 
 function NewInvoicePage() {
-  const { products, loading, error } = useProducts()
+  const { products, loading, error, reload } = useProducts()
+  // `loading` flips true again on every reload() call, including the one
+  // InvoiceForm triggers right after creating an invoice (to refresh stock).
+  // Gating the whole form on `loading` would unmount InvoiceForm -- and its
+  // just-set success banner -- during that refresh. Only gate on the
+  // initial fetch; subsequent reloads update `products` in place instead.
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
+  useEffect(() => {
+    if (!loading) {
+      setHasLoadedOnce(true)
+    }
+  }, [loading])
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
@@ -14,12 +26,12 @@ function NewInvoicePage() {
 
       <ErrorMessage message={error} />
 
-      {loading ? (
+      {!hasLoadedOnce && loading ? (
         <div className="mt-4">
           <LoadingSpinner />
         </div>
       ) : (
-        <InvoiceForm products={products} />
+        <InvoiceForm products={products} onInvoiceCreated={reload} />
       )}
     </div>
   )

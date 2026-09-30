@@ -72,6 +72,19 @@ export function remove(id) {
 }
 
 /**
+ * Checks whether any invoice_items row references this product, i.e.
+ * whether the product has ever been invoiced. Used to block deletion,
+ * since invoice_items.product_id has no ON DELETE clause and would
+ * otherwise throw a raw SQLITE_CONSTRAINT_FOREIGNKEY error.
+ * @param {number} id
+ * @returns {boolean}
+ */
+export function hasInvoiceReferences(id) {
+  const row = db.prepare('SELECT 1 FROM invoice_items WHERE product_id = ? LIMIT 1').get(id)
+  return row !== undefined
+}
+
+/**
  * Adjusts a product's stock by a delta (positive or negative).
  * @param {number} id
  * @param {number} delta
