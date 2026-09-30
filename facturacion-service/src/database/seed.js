@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+import path from 'node:path'
 import bcrypt from 'bcrypt'
 import env from '../config/env.js'
 
@@ -33,7 +35,7 @@ export function seedUsers(database) {
 }
 
 // Script entry point: allow running directly with `node src/database/seed.js`
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   // Import db singleton from connection.js
   import('./connection.js').then(({ default: db }) => {
     seedUsers(db)
