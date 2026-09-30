@@ -23,7 +23,11 @@ function computeTotals(items, products) {
   const subtotal = items.reduce((sum, item, i) => sum + item.quantity * products[i].price, 0)
   const tax = subtotal * 0.12
   const total = subtotal + tax
-  return { subtotal, tax, total }
+  return {
+    subtotal: Math.round(subtotal * 100) / 100,
+    tax: Math.round(tax * 100) / 100,
+    total: Math.round(total * 100) / 100
+  }
 }
 
 /**
@@ -83,20 +87,38 @@ export function findAllByUser(userId) {
  * Atomically creates an invoice and its items, decrementing product stock.
  * Every line is validated (unknown product, then insufficient stock) before
  * any mutation happens, so a failure partway through leaves nothing changed.
+ * Stock is validated against the AGGREGATE quantity requested per product_id
+ * (not each line independently), so the same product appearing in multiple
+ * lines can't bypass the check by having each individual line look fine.
  * @param {{customer_name: string, customer_nit: string, items: Array<{product_id: number, quantity: number}>, userId: number}} params
  * @returns {object} the created invoice, including its items
  */
 export const createInvoiceWithItems = db.transaction(({ customer_name, customer_nit, items, userId }) => {
   // 1. Validate every line FIRST, before mutating anything — unknown product,
-  //    then insufficient stock (checked in that order, per item).
-  const products = items.map((item) => {
-    const product = findProductById(item.product_id)
-    if (!product) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Producto no encontrado')
-    if (product.stock < item.quantity) {
+  //    then insufficient stock, checked against each product's AGGREGATE
+  //    requested quantity across all lines (not each line independently).
+  const productsById = new Map()
+  for (const item of items) {
+    if (!productsById.has(item.product_id)) {
+      const product = findProductById(item.product_id)
+      if (!product) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Producto no encontrado')
+      productsById.set(item.product_id, product)
+    }
+  }
+
+  const requestedQtyByProduct = new Map()
+  for (const item of items) {
+    requestedQtyByProduct.set(item.product_id, (requestedQtyByProduct.get(item.product_id) ?? 0) + item.quantity)
+  }
+
+  for (const [productId, totalQty] of requestedQtyByProduct) {
+    const product = productsById.get(productId)
+    if (product.stock < totalQty) {
       throw new AppError(409, 'INSUFFICIENT_STOCK', `Stock insuficiente para ${product.name}`)
     }
-    return product
-  })
+  }
+
+  const products = items.map((item) => productsById.get(item.product_id))
 
   // 2. Only after every line is validated: compute totals, insert invoice + items, decrement stock.
   const invoiceNumber = nextInvoiceNumber()

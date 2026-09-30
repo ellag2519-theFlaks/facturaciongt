@@ -57,3 +57,33 @@ test('an empty items array is rejected', async () => {
   assert.equal(res.status, 400)
   assert.equal(res.body.error.code, 'EMPTY_INVOICE')
 })
+
+test('duplicate product_id lines are aggregated before validating stock, not checked independently', async () => {
+  const dup = createProduct({ name: 'Mouse', sku: 'MOU-1', price: 50, stock: 5, category: null })
+  const invoicesBefore = db.prepare('SELECT COUNT(*) AS count FROM invoices').get().count
+
+  // Each line (quantity 3) is individually within stock (5), but the two
+  // lines combined (6) exceed it — must still be rejected as INSUFFICIENT_STOCK.
+  const res = await request(app).post('/api/invoices').set('Authorization', `Bearer ${vendedorToken}`)
+    .send({ customer_name: 'X', items: [{ product_id: dup.id, quantity: 3 }, { product_id: dup.id, quantity: 3 }] })
+
+  assert.equal(res.status, 409)
+  assert.equal(res.body.error.code, 'INSUFFICIENT_STOCK')
+
+  const after = db.prepare('SELECT stock FROM products WHERE id = ?').get(dup.id)
+  assert.equal(after.stock, 5)
+  const invoicesAfter = db.prepare('SELECT COUNT(*) AS count FROM invoices').get().count
+  assert.equal(invoicesBefore, invoicesAfter)
+})
+
+test('rounds subtotal/tax/total to 2 decimals for prices with cents', async () => {
+  const centsProduct = createProduct({ name: 'Teclado', sku: 'TEC-1', price: 19.99, stock: 50, category: null })
+
+  const res = await request(app).post('/api/invoices').set('Authorization', `Bearer ${vendedorToken}`)
+    .send({ customer_name: 'X', items: [{ product_id: centsProduct.id, quantity: 3 }] })
+
+  assert.equal(res.status, 201)
+  assert.equal(res.body.subtotal, 59.97)
+  assert.equal(res.body.tax, 7.2)
+  assert.equal(res.body.total, 67.17)
+})
