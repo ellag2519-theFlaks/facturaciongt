@@ -29,6 +29,12 @@ test('admin sees all invoices', async () => {
   assert.ok(res.body.some((inv) => inv.id === vendedorInvoiceId))
 })
 
+test('listed invoices include the creating user\'s username', async () => {
+  const res = await request(app).get('/api/invoices').set('Authorization', `Bearer ${adminToken}`)
+  const invoice = res.body.find((inv) => inv.id === vendedorInvoiceId)
+  assert.equal(invoice.created_by_username, 'vendedor')
+})
+
 test('vendedor sees only their own invoices', async () => {
   const res = await request(app).get('/api/invoices').set('Authorization', `Bearer ${otherVendedorToken}`)
   assert.ok(!res.body.some((inv) => inv.id === vendedorInvoiceId))

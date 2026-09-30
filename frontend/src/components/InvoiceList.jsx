@@ -25,7 +25,7 @@ function InvoiceList({ invoices }) {
             <td className="py-2 pr-4 text-gray-600">{invoice.customer_name}</td>
             <td className="py-2 pr-4 text-gray-600">{invoice.customer_nit}</td>
             <td className="py-2 pr-4 text-gray-600">{formatDate(invoice.created_at)}</td>
-            <td className="py-2 pr-4 text-gray-600">{invoice.created_by}</td>
+            <td className="py-2 pr-4 text-gray-600">{invoice.created_by_username}</td>
             <td className="py-2 pr-4 text-gray-800">{formatCurrency(invoice.total)}</td>
           </tr>
         ))}

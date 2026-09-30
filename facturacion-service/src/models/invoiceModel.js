@@ -67,20 +67,33 @@ export function findById(id) {
 }
 
 /**
- * Returns all invoices (without items).
+ * Returns all invoices (without items), each annotated with the creating
+ * user's username as created_by_username (created_by keeps the raw id).
  * @returns {Array<object>}
  */
 export function findAll() {
-  return db.prepare('SELECT * FROM invoices ORDER BY id').all()
+  return db.prepare(`
+    SELECT invoices.*, users.username AS created_by_username
+    FROM invoices
+    JOIN users ON invoices.created_by = users.id
+    ORDER BY invoices.id
+  `).all()
 }
 
 /**
- * Returns all invoices created by a given user (without items).
+ * Returns all invoices created by a given user (without items), each
+ * annotated with the creating user's username as created_by_username.
  * @param {number} userId
  * @returns {Array<object>}
  */
 export function findAllByUser(userId) {
-  return db.prepare('SELECT * FROM invoices WHERE created_by = ? ORDER BY id').all(userId)
+  return db.prepare(`
+    SELECT invoices.*, users.username AS created_by_username
+    FROM invoices
+    JOIN users ON invoices.created_by = users.id
+    WHERE invoices.created_by = ?
+    ORDER BY invoices.id
+  `).all(userId)
 }
 
 /**
