@@ -1,0 +1,13 @@
+# E2E test suite dependencies for the facturacion project.
+#
+# Install with:
+#   py -m pip install -r requirements.txt
+#   py -m playwright install chromium
+#
+# Run the suite with video recording on (used by generate_report.py, Task 16):
+#   py -m pytest test_auth.py --video=on --html=reports/report.html -v
+
+playwright
+pytest-playwright
+pytest-html
+python-pptx
