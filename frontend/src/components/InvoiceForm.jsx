@@ -43,11 +43,12 @@ function InvoiceForm({ products }) {
     const product = productsById.get(item.product_id)
     return item.quantity > (product?.stock ?? 0)
   })
-  const canSubmit = !isCartEmpty && !hasStockIssue && !isSubmitting
+  const isCustomerNameBlank = customerName.trim() === ''
+  const canSubmit = !isCartEmpty && !hasStockIssue && !isCustomerNameBlank && !isSubmitting
 
   function handleAddProduct(event) {
     event.preventDefault()
-    if (!selectedProductId || addQuantity <= 0) {
+    if (!selectedProductId || addQuantity <= 0 || !Number.isInteger(addQuantity)) {
       return
     }
 
@@ -69,11 +70,10 @@ function InvoiceForm({ products }) {
   }
 
   function handleQuantityChange(productId, quantity) {
+    const normalizedQuantity = Math.max(1, Math.trunc(quantity) || 1)
     setCart((current) =>
       current.map((item) =>
-        item.product_id === productId
-          ? { ...item, quantity: Math.max(1, quantity || 1) }
-          : item,
+        item.product_id === productId ? { ...item, quantity: normalizedQuantity } : item,
       ),
     )
   }
@@ -178,7 +178,9 @@ function InvoiceForm({ products }) {
                 min="1"
                 step="1"
                 value={addQuantity}
-                onChange={(event) => setAddQuantity(Math.max(1, Number(event.target.value) || 1))}
+                onChange={(event) =>
+                  setAddQuantity(Math.max(1, Math.trunc(Number(event.target.value)) || 1))
+                }
                 className="w-24 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
               />
             </div>

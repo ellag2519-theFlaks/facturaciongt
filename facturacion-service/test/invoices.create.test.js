@@ -58,6 +58,27 @@ test('an empty items array is rejected', async () => {
   assert.equal(res.body.error.code, 'EMPTY_INVOICE')
 })
 
+test('a missing customer_name is rejected with 400 VALIDATION_ERROR', async () => {
+  const res = await request(app).post('/api/invoices').set('Authorization', `Bearer ${vendedorToken}`)
+    .send({ items: [{ product_id: product.id, quantity: 1 }] })
+  assert.equal(res.status, 400)
+  assert.equal(res.body.error.code, 'VALIDATION_ERROR')
+})
+
+test('a blank customer_name is rejected with 400 VALIDATION_ERROR', async () => {
+  const res = await request(app).post('/api/invoices').set('Authorization', `Bearer ${vendedorToken}`)
+    .send({ customer_name: '   ', items: [{ product_id: product.id, quantity: 1 }] })
+  assert.equal(res.status, 400)
+  assert.equal(res.body.error.code, 'VALIDATION_ERROR')
+})
+
+test('a fractional quantity is rejected with 400 INVALID_QUANTITY', async () => {
+  const res = await request(app).post('/api/invoices').set('Authorization', `Bearer ${vendedorToken}`)
+    .send({ customer_name: 'X', items: [{ product_id: product.id, quantity: 1.5 }] })
+  assert.equal(res.status, 400)
+  assert.equal(res.body.error.code, 'INVALID_QUANTITY')
+})
+
 test('duplicate product_id lines are aggregated before validating stock, not checked independently', async () => {
   const dup = createProduct({ name: 'Mouse', sku: 'MOU-1', price: 50, stock: 5, category: null })
   const invoicesBefore = db.prepare('SELECT COUNT(*) AS count FROM invoices').get().count

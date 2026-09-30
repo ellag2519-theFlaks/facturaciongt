@@ -8,12 +8,18 @@ function validateItems(items) {
   }
 
   for (const item of items) {
-    if (typeof item.quantity !== 'number' || item.quantity <= 0) {
-      throw new AppError(400, 'INVALID_QUANTITY', 'La cantidad debe ser mayor que 0')
+    if (typeof item.quantity !== 'number' || item.quantity <= 0 || !Number.isInteger(item.quantity)) {
+      throw new AppError(400, 'INVALID_QUANTITY', 'La cantidad debe ser un entero mayor que 0')
     }
     if (!productModel.findById(item.product_id)) {
       throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Producto no encontrado')
     }
+  }
+}
+
+function validateCustomerName(customer_name) {
+  if (!customer_name || !customer_name.trim()) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'El nombre del cliente es requerido')
   }
 }
 
@@ -23,6 +29,7 @@ function validateItems(items) {
  * @returns {object} the created invoice, including computed subtotal/tax/total and its items
  */
 export function createInvoice({ customer_name, customer_nit, items, userId }) {
+  validateCustomerName(customer_name)
   validateItems(items)
 
   return invoiceModel.createInvoiceWithItems({
