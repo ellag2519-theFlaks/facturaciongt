@@ -22,7 +22,7 @@ export function verifyTokenMiddleware(req, res, next) {
 
   try {
     const decoded = verifyJwt(token)
-    req.user = decoded
+    req.user = { id: decoded.id, username: decoded.username, role: decoded.role }
     next()
   } catch (error) {
     next(new AppError(401, 'UNAUTHORIZED', 'Token inválido o expirado'))
