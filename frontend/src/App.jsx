@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './hooks/useAuth'
+import InvoiceHistoryPage from './pages/InvoiceHistoryPage'
 import LoginPage from './pages/LoginPage'
 import NewInvoicePage from './pages/NewInvoicePage'
 import ProductsPage from './pages/ProductsPage'
@@ -23,6 +24,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<HomePage />} />
+            <Route path="/invoices" element={<InvoiceHistoryPage />} />
             <Route path="/invoices/new" element={<NewInvoicePage />} />
           </Route>
           <Route element={<ProtectedRoute roles={['admin']} />}>
