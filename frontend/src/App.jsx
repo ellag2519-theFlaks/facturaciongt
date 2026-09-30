@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './hooks/useAuth'
 import LoginPage from './pages/LoginPage'
+import ProductsPage from './pages/ProductsPage'
 
 function HomePage() {
   return (
@@ -21,6 +22,9 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<HomePage />} />
+          </Route>
+          <Route element={<ProtectedRoute roles={['admin']} />}>
+            <Route path="/products" element={<ProductsPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
