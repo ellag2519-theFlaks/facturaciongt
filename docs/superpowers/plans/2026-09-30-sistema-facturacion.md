@@ -22,6 +22,7 @@
 - Passwords are hashed with `bcrypt` before storage; plaintext never touches the database.
 - E2E suite: `pytest-playwright` with `--video=on` (records every test), `pytest-html` for the report, `python-pptx` for the evidence deck. No other browser-automation or reporting library.
 - Seed credentials (documented in `.env.example`, used by both the seed script and the E2E suite): `admin` / `admin123` (role `admin`), `vendedor` / `vendedor123` (role `vendedor`) — overridable via env vars, but these are the defaults the test suite assumes.
+- Every `facturacion-service` test file that creates rows through the shared `db`/`app` singleton (Tasks 3, 5, 11, 12) calls the `resetDb()` helper (Task 1) in a `before()` hook before seeding/creating fixtures, so running the same file — or the whole suite — twice in a row stays green instead of failing on leftover rows from a previous run. (Task 2's `seedUsers` test uses its own in-memory `Database(':memory:')` and is exempt — nothing it does touches the shared file DB.)
 
 ## Review Focus
 
@@ -46,6 +47,7 @@
 - Create: `facturacion-service/src/utils/AppError.js`
 - Create: `facturacion-service/src/middlewares/errorHandler.js`
 - Create: `facturacion-service/src/middlewares/notFoundHandler.js`
+- Create: `facturacion-service/test/helpers/resetDb.js`
 - Test: `facturacion-service/test/health.test.js`
 
 **Interfaces:**
@@ -55,6 +57,7 @@
 - Produces: `db` (default export of `connection.js`) — a `better-sqlite3` `Database` instance, `pragma('foreign_keys = ON')` enabled, opened at the path from `env.js`.
 - Produces: `env` (default export of `config/env.js`) — `{ port, jwtSecret, jwtExpiresIn, dbPath, seedAdmin: {username,password}, seedVendedor: {username,password} }` read from `process.env` via `dotenv`.
 - Produces: `app` (default export of `src/app.js`) — configured Express app (cors, `express.json()`, routes mounted by later tasks, `notFoundHandler`, `errorHandler` last) with `GET /health` returning `{ status: 'ok' }`.
+- Produces: `resetDb()` (named export, `test/helpers/resetDb.js`) — runs against the shared `db` singleton, deletes all rows in FK-safe order: `DELETE FROM invoice_items; DELETE FROM invoices; DELETE FROM products; DELETE FROM users;`. Every later test file that creates rows calls this in a `before()` hook (see Global Constraints) so reruns of the same file, or the full suite, start from an empty DB instead of colliding with rows a previous run left behind.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -93,6 +96,8 @@ Expected: FAIL (`app.js` / dependencies not found)
 
 `.env.example` documents every `env.js` variable with its default.
 
+Also implement `test/helpers/resetDb.js` per its Interfaces entry above — no dedicated test for it beyond later tasks exercising it via their own `before()` hooks.
+
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `cd facturacion-service && node --test test/health.test.js`
@@ -102,7 +107,7 @@ Expected: PASS
 
 ```bash
 git add facturacion-service/package.json facturacion-service/.env.example facturacion-service/server.js facturacion-service/src facturacion-service/test
-git commit -m "feat: scaffold facturacion-service with health check and error handling"
+git commit -m "feat: scaffold facturacion-service with health check, error handling, and test resetDb helper"
 ```
 
 ---
@@ -115,7 +120,7 @@ git commit -m "feat: scaffold facturacion-service with health check and error ha
 
 **Interfaces:**
 - Consumes: `db` (Task 1), `env.seedAdmin`/`env.seedVendedor` (Task 1).
-- Produces: `seedUsers(database)` (named export) — idempotent (uses `INSERT OR IGNORE` keyed on `username`), hashes both seed passwords with `bcrypt.hashSync(password, 10)`, inserts one `admin` row and one `vendedor` row, returns the two inserted/existing user rows (`{id, username, role}[]`, no password hash in the return value).
+- Produces: `seedUsers(database)` (named export) — idempotent (uses `INSERT OR IGNORE` keyed on `username`), hashes both seed passwords with `bcrypt.hashSync(password, 10)`, inserts one `admin` row then one `vendedor` row, returns `[adminUser, vendedorUser]` — that exact order — as `{id, username, role}` each (no password hash in the return value; `id` is always re-read from the DB row, real or pre-existing, never assumed). `invoices.created_by` has a `REFERENCES users(id)` foreign key (`PRAGMA foreign_keys = ON`, Task 1) — any test that creates an invoice must sign tokens using the `id`s this function returns, never a hardcoded literal, or the insert fails its FK check.
 - Running `node src/database/seed.js` directly seeds the real DB from `env.js` (script entry point calls `seedUsers(db)` when `import.meta.url === \`file://${process.argv[1]}\``).
 
 - [ ] **Step 1: Write the failing test**
@@ -129,7 +134,7 @@ import Database from 'better-sqlite3'
 import { seedUsers } from '../src/database/seed.js'
 
 test('seedUsers creates admin and vendedor with hashed passwords', () => {
-  const db = new Database(':memory:')
+  const db = new Database(':memory:') // in-memory DB — this test does not touch the shared file DB, so it does not need resetDb()
   db.exec(/* same CREATE TABLE users statement as schema.js */ '')
   seedUsers(db)
   const admin = db.prepare('SELECT * FROM users WHERE username = ?').get('admin')
@@ -197,8 +202,12 @@ import request from 'supertest'
 import app from '../src/app.js'
 import db from '../src/database/connection.js'
 import { seedUsers } from '../src/database/seed.js'
+import { resetDb } from './helpers/resetDb.js'
 
-before(() => seedUsers(db))
+before(() => {
+  resetDb()
+  seedUsers(db)
+})
 
 test('login with valid admin credentials returns token and user', async () => {
   const res = await request(app).post('/api/auth/login').send({ username: 'admin', password: 'admin123' })
@@ -219,6 +228,8 @@ test('login with unknown username returns the same 401 INVALID_CREDENTIALS', asy
   assert.equal(res.body.error.code, 'INVALID_CREDENTIALS')
 })
 ```
+
+(`resetDb()` per the Global Constraints test-isolation rule — Task 1's helper, imported from `./helpers/resetDb.js`.)
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -348,9 +359,11 @@ import app from '../src/app.js'
 import db from '../src/database/connection.js'
 import { seedUsers } from '../src/database/seed.js'
 import { signToken } from '../src/utils/jwt.js'
+import { resetDb } from './helpers/resetDb.js'
 
 let adminToken, vendedorToken
 before(() => {
+  resetDb()
   seedUsers(db)
   adminToken = signToken({ id: 1, username: 'admin', role: 'admin' })
   vendedorToken = signToken({ id: 2, username: 'vendedor', role: 'vendedor' })
@@ -504,8 +517,8 @@ git commit -m "feat: add login flow and protected routes"
 **Interfaces:**
 - Produces (`conftest.py`): constants `BASE_URL` (default `http://localhost:5173`), `ADMIN_USER = ("admin", "admin123")`, `VENDEDOR_USER = ("vendedor", "vendedor123")` — all overridable via env vars, defaults matching the Global Constraints seed credentials.
 - Produces: `login(page, username, password)` (module-level helper function) — navigates to `BASE_URL + "/login"`, fills the form, submits, waits for navigation away from `/login`.
-- Produces: `save_evidence(page, test_name: str, step_name: str) -> str` (module-level helper) — screenshots to `tests/evidence/{test_name}__{step_name}.png` (creates the directory if missing), returns the relative path; also appends that path to a per-test list on `page` (e.g. `page._evidence_paths`, initialized empty by a `page` fixture override) so the reporting hook below can read it.
-- Produces: a `pytest_runtest_makereport` hook in `conftest.py` that, on the `"call"` phase of every test, appends one JSON line to `tests/reports/results.json` (creating the file/dir if needed): `{"test_id": <item.nodeid>, "outcome": <"passed"|"failed">, "screenshots": <list of paths from save_evidence for that test>}`. This file is `generate_report.py`'s (Task 16) only input for pass/fail and images — pin the schema exactly as written here.
+- Produces: `save_evidence(page, test_name: str, step_name: str) -> str` (module-level helper) — screenshots to `tests/evidence/{test_name}__{step_name}.png` (creates the directory if missing), returns the relative path; also appends that path to a module-level dict `_SCREENSHOTS: dict[str, list[str]]` keyed by `test_name` (`_SCREENSHOTS.setdefault(test_name, []).append(path)`) so the reporting hook below can read it without touching the Playwright `Page` object itself.
+- Produces: a `pytest_runtest_makereport` hook in `conftest.py` that, on the `"call"` phase of every test, appends one JSON line to `tests/reports/results.json` (creating the file/dir if needed): `{"test_id": <item.nodeid>, "outcome": <"passed"|"failed">, "screenshots": <_SCREENSHOTS.get(item.name, [])>}` — `item.name` is the bare test function name, matching the `test_name` string each test passes to `save_evidence`. This file is `generate_report.py`'s (Task 16) only input for pass/fail and images — pin the schema exactly as written here.
 - `tests/pytest.ini` sets `--video=on` is passed on the CLI (documented in `tests/requirements.txt`'s companion README note), and registers the `evidence`/`reports`/`videos` output directories.
 
 - [ ] **Step 1: Write `tests/requirements.txt`**
@@ -639,8 +652,8 @@ git commit -m "test: add E2E product management tests"
 - Test: `facturacion-service/test/invoices.create.test.js`
 
 **Interfaces:**
-- Consumes: `db`, `AppError` (Task 1), `verifyTokenMiddleware` (Task 4), `productModel` (Task 5, for reading/locking product rows inside the transaction).
-- Produces (`invoiceModel.js`, named exports): `createInvoiceWithItems({customer_name, customer_nit, items, userId})` — the `db.transaction(...)`-wrapped insert (see Step 3 algorithm below); `findAll()`; `findAllByUser(userId)`; `findById(id)` (returns the invoice row plus its `items` array, or `undefined`).
+- Consumes: `db`, `AppError` (Task 1), `verifyTokenMiddleware` (Task 4), `productModel.findById(id)` and `productModel.adjustStock(id, delta)` (Task 5 — reused directly inside the transaction for stock reads and the stock decrement; do not reimplement product row access here).
+- Produces (`invoiceModel.js`, named exports): `createInvoiceWithItems({customer_name, customer_nit, items, userId})` — the `db.transaction(...)`-wrapped insert (see Step 3 algorithm below); `findAll()`; `findAllByUser(userId)`; `findById(id)` (returns the invoice row plus its `items` array, or `undefined` — note this is `invoiceModel.findById`, distinct from `productModel.findById` used inside the transaction).
 - Produces (`invoiceService.js`, named export): `createInvoice({customer_name, customer_nit, items, userId})` — validates `items.length > 0` (else `AppError(400, 'EMPTY_INVOICE', 'La factura debe tener al menos un producto')`), each `item.quantity > 0` and `item.product_id` exists (else `AppError(400, 'INVALID_QUANTITY', ...)` / `AppError(404, 'PRODUCT_NOT_FOUND', ...)`), defaults `customer_nit` to `'CF'` when falsy, then delegates to `createInvoiceWithItems`; returns the created invoice with computed `subtotal`, `tax`, `total`, and its `items`.
 - Produces (`invoiceRoutes.js`, default export `Router`): `POST /` behind `verifyTokenMiddleware` only (both roles may create invoices).
 
@@ -656,11 +669,13 @@ import db from '../src/database/connection.js'
 import { seedUsers } from '../src/database/seed.js'
 import { signToken } from '../src/utils/jwt.js'
 import { create as createProduct } from '../src/models/productModel.js'
+import { resetDb } from './helpers/resetDb.js'
 
 let vendedorToken, product
 before(() => {
-  seedUsers(db)
-  vendedorToken = signToken({ id: 2, username: 'vendedor', role: 'vendedor' })
+  resetDb()
+  const [, vendedor] = seedUsers(db) // FK-safe: sign the token with the real seeded id, not a literal
+  vendedorToken = signToken({ id: vendedor.id, username: vendedor.username, role: vendedor.role })
   product = createProduct({ name: 'Monitor', sku: 'MON-1', price: 100, stock: 5, category: null })
 })
 
@@ -717,10 +732,14 @@ Expected: FAIL
 Transaction algorithm for `createInvoiceWithItems` (the non-obvious part — get this exact ordering right, since it's what makes the operation atomic):
 
 ```js
+import { findById as findProductById, adjustStock } from './productModel.js'
+
 const run = db.transaction(({ customer_name, customer_nit, items, userId }) => {
-  // 1. Validate stock for every line FIRST, before mutating anything.
+  // 1. Validate every line FIRST, before mutating anything — unknown product,
+  //    then insufficient stock (checked in that order, per item).
   const products = items.map((item) => {
-    const product = getProductById(item.product_id) // throws AppError(404,'PRODUCT_NOT_FOUND',...) if missing
+    const product = findProductById(item.product_id)
+    if (!product) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Producto no encontrado')
     if (product.stock < item.quantity) {
       throw new AppError(409, 'INSUFFICIENT_STOCK', `Stock insuficiente para ${product.name}`)
     }
@@ -732,13 +751,13 @@ const run = db.transaction(({ customer_name, customer_nit, items, userId }) => {
   const invoiceId = insertInvoice({ invoice_number: invoiceNumber, customer_name, customer_nit, subtotal, tax, total, created_by: userId })
   items.forEach((item, i) => {
     insertInvoiceItem(invoiceId, { product_id: item.product_id, product_name: products[i].name, quantity: item.quantity, unit_price: products[i].price, line_total: item.quantity * products[i].price })
-    decrementStock(item.product_id, item.quantity)
+    adjustStock(item.product_id, -item.quantity)
   })
   return findById(invoiceId)
 })
 ```
 
-`better-sqlite3`'s `db.transaction()` wrapper rolls back automatically when the wrapped function throws — that's what guarantees "nothing mutated" in the insufficient-stock test.
+`findProductById`/`adjustStock` are `productModel.js`'s existing `findById`/`adjustStock` (Task 5), imported and reused as-is — not reimplemented here. `insertInvoice`, `insertInvoiceItem`, `nextInvoiceNumber`, `computeTotals`, and the bare `findById` at the end are local to `invoiceModel.js`. `better-sqlite3`'s `db.transaction()` wrapper rolls back automatically when the wrapped function throws — running on the same shared `db` connection, `adjustStock`'s own `db.prepare(...).run(...)` falls inside this same transaction even though it's defined in another module — that's what guarantees "nothing mutated" in the insufficient-stock test.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -779,13 +798,18 @@ import db from '../src/database/connection.js'
 import { seedUsers } from '../src/database/seed.js'
 import { signToken } from '../src/utils/jwt.js'
 import { create as createProduct } from '../src/models/productModel.js'
+import { resetDb } from './helpers/resetDb.js'
 
 let adminToken, vendedorToken, otherVendedorToken, vendedorInvoiceId
 before(async () => {
-  seedUsers(db)
-  adminToken = signToken({ id: 1, username: 'admin', role: 'admin' })
-  vendedorToken = signToken({ id: 2, username: 'vendedor', role: 'vendedor' })
-  otherVendedorToken = signToken({ id: 3, username: 'vendedor2', role: 'vendedor' })
+  resetDb()
+  const [admin, vendedor] = seedUsers(db)
+  adminToken = signToken({ id: admin.id, username: admin.username, role: admin.role })
+  // FK-safe: this token creates an invoice below, so it must carry a real seeded id.
+  vendedorToken = signToken({ id: vendedor.id, username: vendedor.username, role: vendedor.role })
+  // otherVendedorToken is never used to insert anything (GET requests only), so an
+  // id with no matching users row is fine — it only has to differ from vendedor.id.
+  otherVendedorToken = signToken({ id: vendedor.id + 1000, username: 'vendedor2', role: 'vendedor' })
   const product = createProduct({ name: 'Cable', sku: 'CAB-1', price: 10, stock: 100, category: null })
   const res = await request(app).post('/api/invoices').set('Authorization', `Bearer ${vendedorToken}`)
     .send({ customer_name: 'Ana', items: [{ product_id: product.id, quantity: 1 }] })
