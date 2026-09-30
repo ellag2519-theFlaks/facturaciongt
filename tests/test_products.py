@@ -1,0 +1,129 @@
+# tests/test_products.py
+"""E2E tests for the admin Products page: create, edit, delete, the
+DUPLICATE_SKU (409) inline error, and the admin-only route guard.
+
+Each test generates its own unique SKU/name (uuid4-based) so runs never
+collide with data left behind by earlier runs against the same database.
+"""
+import uuid
+
+from conftest import ADMIN_USER, BASE_URL, VENDEDOR_USER, login, save_evidence
+
+
+def _unique_sku():
+    return f"SKU-{uuid.uuid4().hex[:8]}"
+
+
+def _create_product_via_ui(page, name, sku, price, stock, category=""):
+    """Open the create form, fill it, and submit. Assumes the "Nuevo
+    producto" button is currently visible (no form already open)."""
+    page.get_by_role("button", name="Nuevo producto").click()
+    page.get_by_label("Nombre").fill(name)
+    page.get_by_label("SKU").fill(sku)
+    page.get_by_label("Precio").fill(str(price))
+    page.get_by_label("Stock").fill(str(stock))
+    if category:
+        page.get_by_label("Categoría").fill(category)
+    page.get_by_role("button", name="Crear").click()
+
+
+def test_admin_create_product(page):
+    login(page, *ADMIN_USER)
+    page.goto(f"{BASE_URL}/products")
+
+    name = f"Producto Test {uuid.uuid4().hex[:6]}"
+    sku = _unique_sku()
+    _create_product_via_ui(page, name, sku, 99.99, 10, "General")
+
+    row = page.locator("tr", has_text=sku)
+    row.wait_for()
+    save_evidence(page, "test_admin_create_product", "01_product_created")
+
+    assert row.is_visible()
+    assert row.get_by_text(name).is_visible()
+
+
+def test_admin_edit_product_price(page):
+    login(page, *ADMIN_USER)
+    page.goto(f"{BASE_URL}/products")
+
+    name = f"Producto Editar {uuid.uuid4().hex[:6]}"
+    sku = _unique_sku()
+    _create_product_via_ui(page, name, sku, 50, 5)
+
+    row = page.locator("tr", has_text=sku)
+    row.wait_for()
+
+    row.get_by_role("button", name="Editar").click()
+    page.get_by_label("Precio").fill("123.45")
+    page.get_by_role("button", name="Guardar cambios").click()
+
+    row = page.locator("tr", has_text=sku)
+    row.get_by_text("Q 123.45").wait_for()
+    save_evidence(page, "test_admin_edit_product_price", "01_price_updated")
+
+    assert row.get_by_text("Q 123.45").is_visible()
+
+
+def test_admin_delete_product(page):
+    login(page, *ADMIN_USER)
+    page.goto(f"{BASE_URL}/products")
+
+    name = f"Producto Eliminar {uuid.uuid4().hex[:6]}"
+    sku = _unique_sku()
+    _create_product_via_ui(page, name, sku, 20, 3)
+
+    row = page.locator("tr", has_text=sku)
+    row.wait_for()
+
+    # The delete handler uses window.confirm(); accept it so the delete
+    # proceeds instead of being dismissed by Playwright's default behavior.
+    page.once("dialog", lambda dialog: dialog.accept())
+    row.get_by_role("button", name="Eliminar").click()
+
+    page.wait_for_selector(f"tr:has-text('{sku}')", state="detached")
+    save_evidence(page, "test_admin_delete_product", "01_product_deleted")
+
+    assert page.locator("tr", has_text=sku).count() == 0
+
+
+def test_admin_duplicate_sku_shows_inline_error(page):
+    login(page, *ADMIN_USER)
+    page.goto(f"{BASE_URL}/products")
+
+    sku = _unique_sku()
+    name_original = f"Producto Original {uuid.uuid4().hex[:6]}"
+    _create_product_via_ui(page, name_original, sku, 15, 2)
+
+    row = page.locator("tr", has_text=sku)
+    row.wait_for()
+
+    # Re-use the same SKU for a second product: the backend rejects this
+    # with a 409 DUPLICATE_SKU, which ProductForm renders as a <p role="alert">
+    # next to the SKU field specifically -- not the generic error banner
+    # (a <div role="alert">) used for other errors.
+    name_duplicate = f"Producto Duplicado {uuid.uuid4().hex[:6]}"
+    _create_product_via_ui(page, name_duplicate, sku, 30, 4)
+
+    sku_error = page.locator("p[role='alert']", has_text="El SKU ya existe")
+    sku_error.wait_for()
+    save_evidence(page, "test_admin_duplicate_sku_shows_inline_error", "01_duplicate_sku_error")
+
+    assert sku_error.is_visible()
+    # The rejected submission must not have created a second product.
+    assert page.locator("tr", has_text=name_duplicate).count() == 0
+
+
+def test_vendedor_redirected_from_products(page):
+    login(page, *VENDEDOR_USER)
+    page.goto(f"{BASE_URL}/products")
+
+    # ProtectedRoute redirects any non-admin role away to "/" client-side
+    # (no 403 page) -- wait for that navigation rather than asserting
+    # immediately, since it happens after the auth check renders.
+    page.wait_for_url(f"{BASE_URL}/")
+    save_evidence(page, "test_vendedor_redirected_from_products", "01_redirected_home")
+
+    assert page.url == f"{BASE_URL}/"
+    assert page.get_by_text("Sistema de Facturación").is_visible()
+    assert page.get_by_text("Productos", exact=True).count() == 0
