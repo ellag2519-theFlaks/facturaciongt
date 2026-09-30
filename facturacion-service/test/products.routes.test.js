@@ -51,3 +51,35 @@ test('vendedor can list products but not create one', async () => {
     .send({ name: 'X', sku: 'X-1', price: 1, stock: 1 })
   assert.equal(create.status, 403)
 })
+
+test('creating a product with a missing sku returns 400 VALIDATION_ERROR, not a raw 500', async () => {
+  const res = await request(app).post('/api/products').set('Authorization', `Bearer ${adminToken}`)
+    .send({ name: 'No SKU', price: 10, stock: 1 })
+  assert.equal(res.status, 400)
+  assert.equal(res.body.error.code, 'VALIDATION_ERROR')
+})
+
+test('creating a product with a missing name returns 400 VALIDATION_ERROR, not a raw 500', async () => {
+  const res = await request(app).post('/api/products').set('Authorization', `Bearer ${adminToken}`)
+    .send({ sku: 'NO-NAME-1', price: 10, stock: 1 })
+  assert.equal(res.status, 400)
+  assert.equal(res.body.error.code, 'VALIDATION_ERROR')
+})
+
+test('updating a product with a missing sku returns 400 VALIDATION_ERROR, not a raw 500', async () => {
+  const created = await request(app).post('/api/products').set('Authorization', `Bearer ${adminToken}`)
+    .send({ name: 'Monitor', sku: 'MON-1', price: 200, stock: 3 })
+  const res = await request(app).put(`/api/products/${created.body.id}`).set('Authorization', `Bearer ${adminToken}`)
+    .send({ name: 'Monitor', price: 200, stock: 3 })
+  assert.equal(res.status, 400)
+  assert.equal(res.body.error.code, 'VALIDATION_ERROR')
+})
+
+test('admin adjusts product stock', async () => {
+  const created = await request(app).post('/api/products').set('Authorization', `Bearer ${adminToken}`)
+    .send({ name: 'Webcam', sku: 'CAM-1', price: 80, stock: 5 })
+  const res = await request(app).patch(`/api/products/${created.body.id}/stock`).set('Authorization', `Bearer ${adminToken}`)
+    .send({ delta: 3 })
+  assert.equal(res.status, 200)
+  assert.equal(res.body.stock, 8)
+})

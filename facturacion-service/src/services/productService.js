@@ -1,7 +1,13 @@
 import * as productModel from '../models/productModel.js'
 import AppError from '../utils/AppError.js'
 
-function validatePriceAndStock({ price, stock }) {
+function validateProductData({ name, sku, price, stock }) {
+  if (typeof name !== 'string' || !name.trim()) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'El nombre es obligatorio')
+  }
+  if (typeof sku !== 'string' || !sku.trim()) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'El SKU es obligatorio')
+  }
   if (typeof price !== 'number' || price <= 0) {
     throw new AppError(400, 'VALIDATION_ERROR', 'El precio debe ser mayor que 0')
   }
@@ -43,26 +49,28 @@ export function getProduct(id) {
 }
 
 /**
- * Creates a product, validating price/stock and SKU uniqueness.
+ * Creates a product, validating required fields (name, sku, price, stock)
+ * and SKU uniqueness.
  * @param {{name: string, sku: string, price: number, stock: number, category?: string}} data
  * @returns {object}
  */
 export function createProduct(data) {
-  validatePriceAndStock(data)
+  validateProductData(data)
   assertNoSkuCollision(data.sku)
   return productModel.create(data)
 }
 
 /**
- * Updates a product, validating price/stock, existence, and SKU uniqueness
- * (excluding the product's own id so it doesn't collide with itself).
+ * Updates a product, validating existence, required fields (name, sku,
+ * price, stock), and SKU uniqueness (excluding the product's own id so it
+ * doesn't collide with itself).
  * @param {number} id
  * @param {{name: string, sku: string, price: number, stock: number, category?: string}} data
  * @returns {object}
  */
 export function updateProduct(id, data) {
   getProductOrThrow(id)
-  validatePriceAndStock(data)
+  validateProductData(data)
   assertNoSkuCollision(data.sku, id)
   return productModel.update(id, data)
 }
