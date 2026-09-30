@@ -3,6 +3,7 @@ import cors from 'cors'
 import './database/schema.js'
 import authRoutes from './routes/authRoutes.js'
 import productRoutes from './routes/productRoutes.js'
+import invoiceRoutes from './routes/invoiceRoutes.js'
 import notFoundHandler from './middlewares/notFoundHandler.js'
 import errorHandler from './middlewares/errorHandler.js'
 
@@ -20,6 +21,7 @@ app.get('/health', (req, res) => {
 // Routes
 app.use('/api/auth', authRoutes)
 app.use('/api/products', productRoutes)
+app.use('/api/invoices', invoiceRoutes)
 
 // Error handling
 app.use(notFoundHandler)
