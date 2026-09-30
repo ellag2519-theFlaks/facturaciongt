@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import './database/schema.js'
+import authRoutes from './routes/authRoutes.js'
 import notFoundHandler from './middlewares/notFoundHandler.js'
 import errorHandler from './middlewares/errorHandler.js'
 
@@ -15,7 +16,8 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' })
 })
 
-// Routes will be mounted here by later tasks
+// Routes
+app.use('/api/auth', authRoutes)
 
 // Error handling
 app.use(notFoundHandler)
