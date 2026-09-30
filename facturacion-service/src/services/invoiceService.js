@@ -32,3 +32,33 @@ export function createInvoice({ customer_name, customer_nit, items, userId }) {
     userId
   })
 }
+
+/**
+ * Lists invoices scoped by role: admins see every invoice, everyone else
+ * sees only invoices they created.
+ * @param {{id: number, role: string}} user
+ * @returns {Array<object>}
+ */
+export function listInvoices(user) {
+  if (user.role === 'admin') {
+    return invoiceModel.findAll()
+  }
+  return invoiceModel.findAllByUser(user.id)
+}
+
+/**
+ * Fetches a single invoice by id, scoped by role. A non-admin requesting an
+ * invoice that exists but isn't theirs gets the SAME 404 as a nonexistent
+ * id — the two cases must be indistinguishable so an attacker can't use the
+ * response to enumerate valid invoice ids (IDOR protection).
+ * @param {number} id
+ * @param {{id: number, role: string}} user
+ * @returns {object}
+ */
+export function getInvoice(id, user) {
+  const invoice = invoiceModel.findById(id)
+  if (!invoice || (user.role !== 'admin' && invoice.created_by !== user.id)) {
+    throw new AppError(404, 'NOT_FOUND', 'Factura no encontrada')
+  }
+  return invoice
+}

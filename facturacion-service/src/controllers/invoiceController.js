@@ -14,3 +14,21 @@ export function createInvoiceHandler(req, res, next) {
     next(err)
   }
 }
+
+export function listInvoicesHandler(req, res, next) {
+  try {
+    const invoices = invoiceService.listInvoices(req.user)
+    res.status(200).json(invoices)
+  } catch (err) {
+    next(err)
+  }
+}
+
+export function getInvoiceHandler(req, res, next) {
+  try {
+    const invoice = invoiceService.getInvoice(Number(req.params.id), req.user)
+    res.status(200).json(invoice)
+  } catch (err) {
+    next(err)
+  }
+}
