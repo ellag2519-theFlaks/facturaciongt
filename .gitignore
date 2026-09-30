@@ -1,0 +1,27 @@
+# SDD scratch workspace (ledgers, briefs, review packages)
+.superpowers/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Env files (never commit secrets/JWT_SECRET)
+.env
+!.env.example
+
+# Backend data
+facturacion-service/data/
+
+# Frontend build output
+frontend/dist/
+
+# Python
+tests/__pycache__/
+tests/.pytest_cache/
+tests/venv/
+tests/.venv/
+
+# Test run artifacts (regenerated every run)
+tests/evidence/
+tests/videos/
+tests/reports/
