@@ -118,6 +118,14 @@ function InvoiceDetailPage() {
                 <span>Total</span>
                 <span>{formatCurrency(invoice.total)}</span>
               </div>
+              {invoice.payment_currency === 'USD' && (
+                <div className="flex justify-between text-gray-600">
+                  <span>Equivalente</span>
+                  <span>
+                    ${invoice.total_usd.toFixed(2)} USD (tasa: {invoice.exchange_rate})
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>

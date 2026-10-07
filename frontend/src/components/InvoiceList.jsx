@@ -28,7 +28,11 @@ function InvoiceList({ invoices }) {
             <td className="py-2 pr-4 text-gray-600">{invoice.customer_nit}</td>
             <td className="py-2 pr-4 text-gray-600">{formatDate(invoice.created_at)}</td>
             <td className="py-2 pr-4 text-gray-600">{invoice.created_by_username}</td>
-            <td className="py-2 pr-4 text-gray-800">{formatCurrency(invoice.total)}</td>
+            <td className="py-2 pr-4 text-gray-800">
+              {formatCurrency(invoice.total)}
+              {invoice.payment_currency === 'USD' &&
+                ` (≈ $${invoice.total_usd.toFixed(2)} USD, tasa: ${invoice.exchange_rate})`}
+            </td>
             <td className="py-2 pr-4">
               <Link
                 to={`/invoices/${invoice.id}`}
