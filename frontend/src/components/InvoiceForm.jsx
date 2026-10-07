@@ -12,6 +12,7 @@ function round2(value) {
 function InvoiceForm({ products, onInvoiceCreated }) {
   const [customerName, setCustomerName] = useState('')
   const [customerNit, setCustomerNit] = useState('')
+  const [paymentCurrency, setPaymentCurrency] = useState('GTQ')
   const [cart, setCart] = useState([])
   const [selectedProductId, setSelectedProductId] = useState('')
   const [addQuantity, setAddQuantity] = useState(1)
@@ -92,6 +93,7 @@ function InvoiceForm({ products, onInvoiceCreated }) {
       const invoice = await createInvoice({
         customer_name: customerName,
         customer_nit: customerNit || undefined,
+        payment_currency: paymentCurrency,
         items: cart.map((item) => ({ product_id: item.product_id, quantity: item.quantity })),
       })
       setCreatedInvoice(invoice)
@@ -150,6 +152,21 @@ function InvoiceForm({ products, onInvoiceCreated }) {
               onChange={(event) => setCustomerNit(event.target.value)}
               className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
             />
+          </div>
+          <div className="flex flex-1 flex-col gap-1">
+            <label htmlFor="payment_currency" className="text-sm font-medium text-gray-700">
+              Moneda de pago
+            </label>
+            <select
+              id="payment_currency"
+              name="payment_currency"
+              value={paymentCurrency}
+              onChange={(event) => setPaymentCurrency(event.target.value)}
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            >
+              <option value="GTQ">Quetzales</option>
+              <option value="USD">Dólares</option>
+            </select>
           </div>
         </div>
 
