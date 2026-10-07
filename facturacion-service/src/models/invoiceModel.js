@@ -34,11 +34,11 @@ function computeTotals(items, products) {
  * Inserts the invoice row.
  * @returns {number} the new invoice id
  */
-function insertInvoice({ invoice_number, customer_name, customer_nit, subtotal, tax, total, created_by }) {
+function insertInvoice({ invoice_number, customer_name, customer_nit, subtotal, tax, total, created_by, payment_currency, exchange_rate, total_usd }) {
   const result = db.prepare(`
-    INSERT INTO invoices (invoice_number, customer_name, customer_nit, subtotal, tax, total, created_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(invoice_number, customer_name, customer_nit, subtotal, tax, total, created_by)
+    INSERT INTO invoices (invoice_number, customer_name, customer_nit, subtotal, tax, total, created_by, payment_currency, exchange_rate, total_usd)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(invoice_number, customer_name, customer_nit, subtotal, tax, total, created_by, payment_currency, exchange_rate, total_usd)
 
   return result.lastInsertRowid
 }
@@ -109,10 +109,10 @@ export function findAllByUser(userId) {
  * Stock is validated against the AGGREGATE quantity requested per product_id
  * (not each line independently), so the same product appearing in multiple
  * lines can't bypass the check by having each individual line look fine.
- * @param {{customer_name: string, customer_nit: string, items: Array<{product_id: number, quantity: number}>, userId: number}} params
+ * @param {{customer_name: string, customer_nit: string, items: Array<{product_id: number, quantity: number}>, userId: number, payment_currency: ('GTQ'|'USD'), exchangeRate: (number|null)}} params
  * @returns {object} the created invoice, including its items
  */
-export const createInvoiceWithItems = db.transaction(({ customer_name, customer_nit, items, userId }) => {
+export const createInvoiceWithItems = db.transaction(({ customer_name, customer_nit, items, userId, payment_currency, exchangeRate }) => {
   // 1. Validate every line FIRST, before mutating anything — unknown product,
   //    then insufficient stock, checked against each product's AGGREGATE
   //    requested quantity across all lines (not each line independently).
@@ -142,7 +142,19 @@ export const createInvoiceWithItems = db.transaction(({ customer_name, customer_
   // 2. Only after every line is validated: compute totals, insert invoice + items, decrement stock.
   const invoiceNumber = nextInvoiceNumber()
   const { subtotal, tax, total } = computeTotals(items, products)
-  const invoiceId = insertInvoice({ invoice_number: invoiceNumber, customer_name, customer_nit, subtotal, tax, total, created_by: userId })
+  const totalUsd = payment_currency === 'USD' ? Math.round((total / exchangeRate) * 100) / 100 : null
+  const invoiceId = insertInvoice({
+    invoice_number: invoiceNumber,
+    customer_name,
+    customer_nit,
+    subtotal,
+    tax,
+    total,
+    created_by: userId,
+    payment_currency,
+    exchange_rate: payment_currency === 'USD' ? exchangeRate : null,
+    total_usd: totalUsd
+  })
   items.forEach((item, i) => {
     insertInvoiceItem(invoiceId, { product_id: item.product_id, product_name: products[i].name, quantity: item.quantity, unit_price: products[i].price, line_total: item.quantity * products[i].price })
     adjustStock(item.product_id, -item.quantity)

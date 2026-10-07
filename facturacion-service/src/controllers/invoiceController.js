@@ -1,13 +1,14 @@
 import * as invoiceService from '../services/invoiceService.js'
 
-export function createInvoiceHandler(req, res, next) {
+export async function createInvoiceHandler(req, res, next) {
   try {
-    const { customer_name, customer_nit, items } = req.body
-    const invoice = invoiceService.createInvoice({
+    const { customer_name, customer_nit, items, payment_currency } = req.body
+    const invoice = await invoiceService.createInvoice({
       customer_name,
       customer_nit,
       items,
-      userId: req.user.id
+      userId: req.user.id,
+      payment_currency
     })
     res.status(201).json(invoice)
   } catch (err) {

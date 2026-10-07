@@ -1,5 +1,6 @@
 import * as invoiceModel from '../models/invoiceModel.js'
 import * as productModel from '../models/productModel.js'
+import * as exchangeClient from '../clients/exchangeClient.js'
 import AppError from '../utils/AppError.js'
 
 function validateItems(items) {
@@ -24,19 +25,36 @@ function validateCustomerName(customer_name) {
 }
 
 /**
- * Validates and creates an invoice, decrementing stock atomically.
- * @param {{customer_name: string, customer_nit?: string, items: Array<{product_id: number, quantity: number}>, userId: number}} params
+ * Validates and creates an invoice, decrementing stock atomically. When
+ * payment_currency is 'USD', the current exchange rate is fetched BEFORE
+ * the (synchronous) transaction runs — invoiceModel.createInvoiceWithItems
+ * never calls the network itself. If the rate can't be fetched, nothing is
+ * written: the AppError is thrown before the transaction is ever invoked.
+ * @param {{customer_name: string, customer_nit?: string, items: Array<{product_id: number, quantity: number}>, userId: number, payment_currency?: ('GTQ'|'USD')}} params
  * @returns {object} the created invoice, including computed subtotal/tax/total and its items
  */
-export function createInvoice({ customer_name, customer_nit, items, userId }) {
+export async function createInvoice({ customer_name, customer_nit, items, userId, payment_currency }) {
   validateCustomerName(customer_name)
   validateItems(items)
+
+  const currency = payment_currency === 'USD' ? 'USD' : 'GTQ'
+  let exchangeRate = null
+  if (currency === 'USD') {
+    try {
+      const { rate } = await exchangeClient.getTodayRate()
+      exchangeRate = rate
+    } catch {
+      throw new AppError(502, 'EXCHANGE_SERVICE_UNAVAILABLE', 'No se pudo obtener la tasa de cambio actual. Intente de nuevo o facture en Quetzales.')
+    }
+  }
 
   return invoiceModel.createInvoiceWithItems({
     customer_name,
     customer_nit: customer_nit || 'CF',
     items,
-    userId
+    userId,
+    payment_currency: currency,
+    exchangeRate
   })
 }
 
