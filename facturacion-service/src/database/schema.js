@@ -42,3 +42,14 @@ CREATE TABLE IF NOT EXISTS invoice_items (
   line_total REAL NOT NULL
 );
 `)
+
+const invoiceColumns = db.prepare('PRAGMA table_info(invoices)').all().map((col) => col.name)
+if (!invoiceColumns.includes('payment_currency')) {
+  db.exec("ALTER TABLE invoices ADD COLUMN payment_currency TEXT NOT NULL DEFAULT 'GTQ' CHECK (payment_currency IN ('GTQ', 'USD'))")
+}
+if (!invoiceColumns.includes('exchange_rate')) {
+  db.exec('ALTER TABLE invoices ADD COLUMN exchange_rate REAL')
+}
+if (!invoiceColumns.includes('total_usd')) {
+  db.exec('ALTER TABLE invoices ADD COLUMN total_usd REAL')
+}
