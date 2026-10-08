@@ -14,3 +14,8 @@ export async function createInvoice(data) {
   const response = await apiClient.post('/invoices', data)
   return response.data
 }
+
+export async function getExchangeRate() {
+  const response = await apiClient.get('/invoices/exchange-rate')
+  return response.data
+}

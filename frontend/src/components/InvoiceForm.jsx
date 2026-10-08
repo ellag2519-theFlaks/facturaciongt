@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { createInvoice } from '../services/invoices.api'
+import { useEffect, useMemo, useState } from 'react'
+import { createInvoice, getExchangeRate } from '../services/invoices.api'
 import { formatCurrency } from '../utils/formatCurrency'
 import ErrorMessage from './ErrorMessage'
 import InvoiceItemRow from './InvoiceItemRow'
@@ -19,6 +19,40 @@ function InvoiceForm({ products, onInvoiceCreated }) {
   const [error, setError] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [createdInvoice, setCreatedInvoice] = useState(null)
+  const [currentRate, setCurrentRate] = useState(null)
+  const [isRateLoading, setIsRateLoading] = useState(false)
+  const [rateError, setRateError] = useState(null)
+
+  useEffect(() => {
+    if (paymentCurrency !== 'USD') {
+      return undefined
+    }
+
+    let cancelled = false
+    setIsRateLoading(true)
+    setRateError(null)
+
+    getExchangeRate()
+      .then((data) => {
+        if (!cancelled) {
+          setCurrentRate(data.rate)
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setRateError(err.message)
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsRateLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [paymentCurrency])
 
   const productsById = useMemo(() => {
     const map = new Map()
@@ -170,6 +204,17 @@ function InvoiceForm({ products, onInvoiceCreated }) {
               <option value="GTQ">Quetzales</option>
               <option value="USD">Dólares</option>
             </select>
+            {paymentCurrency === 'USD' && (
+              <p className="text-xs text-gray-500">
+                {isRateLoading
+                  ? 'Consultando tasa de cambio...'
+                  : rateError
+                    ? 'No se pudo obtener la tasa de cambio actual.'
+                    : currentRate != null
+                      ? `Cambio actual según Banco de Guatemala, ${currentRate}`
+                      : null}
+              </p>
+            )}
           </div>
         </div>
 
