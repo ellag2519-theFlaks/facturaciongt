@@ -149,6 +149,12 @@ def test_create_usd_invoice_shows_dollar_equivalent(page):
     # navigation pattern as the existing invoice E2E tests).
     history_row.get_by_role("link", name="Ver detalle").click()
     page.wait_for_url(re.compile(r"/invoices/\d+$"))
+    # wait_for_url resolves as soon as the URL changes, which can be before
+    # InvoiceDetailPage actually mounts -- the Invoice History list page
+    # (being navigated away from) has its own "Total" column header that
+    # would otherwise satisfy the ^Total$ match below while still in the
+    # DOM mid-transition. Wait for a detail-page-specific element first.
+    page.get_by_role("heading", name="Detalle de factura").wait_for()
 
     total_row_text = page.get_by_text(re.compile(r"^Total$"), exact=True).locator("xpath=..").inner_text()
     equivalente_row_text = (
