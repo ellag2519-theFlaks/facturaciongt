@@ -121,7 +121,7 @@ def test_create_usd_invoice_shows_dollar_equivalent(page):
     # the banner (i.e. the submission actually succeeded, including the real
     # Banguat round-trip) appeared.
     status = page.get_by_role("status")
-    status.wait_for()
+    status.get_by_text(re.compile("creada")).wait_for()
     save_evidence(page, TEST_NAME, "02_invoice_created")
     assert status.is_visible()
     assert "creada" in status.inner_text()
