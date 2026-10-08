@@ -100,6 +100,7 @@ function InvoiceForm({ products, onInvoiceCreated }) {
       setCart([])
       setCustomerName('')
       setCustomerNit('')
+      setPaymentCurrency('GTQ')
       // Refresh product stock so the picker (and the stock-exceeded guard)
       // reflect the sale immediately instead of the pre-sale quantities.
       // Not awaited: the invoice is already created and the success banner
@@ -121,6 +122,8 @@ function InvoiceForm({ products, onInvoiceCreated }) {
           className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800"
         >
           Factura {createdInvoice.invoice_number} creada. Total: {formatCurrency(createdInvoice.total)}
+          {createdInvoice.payment_currency === 'USD' &&
+            ` (≈ $${createdInvoice.total_usd.toFixed(2)} USD, tasa: ${createdInvoice.exchange_rate})`}
         </div>
       )}
 

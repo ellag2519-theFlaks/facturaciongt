@@ -183,7 +183,7 @@ Rutas (definidas en `App.jsx`):
 | Ruta | Acceso | Página |
 |---|---|---|
 | `/login` | público | `LoginPage` |
-| `/` | autenticado | página principal (placeholder, sin menú) |
+| `/` | autenticado | página principal (dentro de la barra de navegación) |
 | `/invoices/new` | autenticado (admin, vendedor) | `NewInvoicePage` |
 | `/invoices` | autenticado (admin, vendedor) | `InvoiceHistoryPage` |
 | `/invoices/:id` | autenticado (admin, vendedor — solo las propias) | `InvoiceDetailPage` |

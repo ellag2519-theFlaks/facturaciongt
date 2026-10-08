@@ -144,12 +144,13 @@ operación completa con el error **"Stock insuficiente para {producto}"**
 y no se crea ninguna factura ni se modifica el inventario.
 
 Al crear la factura exitosamente, aparece un mensaje de confirmación con
-el número de factura (formato `FAC-000001`) y el total **en Quetzales**
-(el mensaje de confirmación no muestra el monto en dólares aunque se haya
-elegido esa moneda — el equivalente aparece en el historial y en el
-detalle de la factura, ver sección 6), y el formulario se limpia para la
-siguiente venta. El stock de los productos vendidos queda descontado de
-inmediato.
+el número de factura (formato `FAC-000001`) y el total **en Quetzales**;
+si la factura se pagó en dólares, el mismo mensaje agrega el equivalente
+en dólares y la tasa usada (formato `(≈ $X.XX USD, tasa: Y)`, el mismo
+dato que luego se repite en el historial y en el detalle de la factura,
+ver sección 6). El formulario se limpia para la siguiente venta,
+incluyendo la **Moneda de pago**, que vuelve a Quetzales por defecto. El
+stock de los productos vendidos queda descontado de inmediato.
 
 > **Facturar en dólares sin conexión al tipo de cambio:** si el sistema no
 > puede obtener la tasa de cambio del día (por ejemplo, sin conexión a

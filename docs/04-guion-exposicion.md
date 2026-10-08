@@ -77,15 +77,20 @@ Lo más interesante para explicar: `invoice_items` guarda una **copia**
 que una factura ya emitida no cambie si después se edita o renombra ese
 producto. El número de factura (`FAC-000001`, correlativo) se calcula
 dentro de la misma transacción a partir del máximo id existente, para que
-nunca se dupliquen ni dependan del reloj de la máquina.
+nunca se dupliquen ni dependan del reloj de la máquina. La tabla
+`invoices` también tiene las columnas `payment_currency`, `exchange_rate`
+y `total_usd`, que quedan en `NULL`/`'GTQ'` para una factura en Quetzales
+y solo se completan cuando la factura se paga en dólares.
 
 ## 7. Manejo de errores
 
 El backend siempre responde `{ error: { code, message } }` con el código
 HTTP correcto (400 validación, 401 sin sesión, 403 sin permiso, 404 no
 encontrado, 409 conflicto — SKU duplicado o stock insuficiente, 500 error
-interno). El frontend muestra ese mensaje directamente al usuario en un
-recuadro de error reutilizable.
+interno), más un 502 `EXCHANGE_SERVICE_UNAVAILABLE` específico cuando no
+se pudo obtener la tasa de cambio del día para una factura en dólares. El
+frontend muestra ese mensaje directamente al usuario en un recuadro de
+error reutilizable.
 
 ## 8. El pipeline de QA automatizado
 
@@ -117,11 +122,12 @@ end-to-end con Playwright controlando un navegador real:
    cómo se calculan subtotal, IVA 12% y total en vivo, y crear la factura.
 5. Volver a `/products` (como admin) y mostrar que el stock bajó de `5` a
    `3`.
-6. Volver a `/invoices/new` (aún como vendedor) y crear otra factura con
-   ese mismo producto, pero esta vez eligiendo **Dólares** en el selector
-   "Moneda de pago" antes de enviar. El formulario sigue mostrando
-   subtotal, IVA 12% y total **en Quetzales** igual que antes — la
-   conversión a dólares la hace el backend, no se ve todavía en el
+6. Volver a `/invoices/new` (como admin, sin cambiar de sesión — admin
+   también puede crear facturas) y crear otra factura con ese mismo
+   producto, con cantidad `1`, pero esta vez eligiendo **Dólares** en el
+   selector "Moneda de pago" antes de enviar. El formulario sigue
+   mostrando subtotal, IVA 12% y total **en Quetzales** igual que antes —
+   la conversión a dólares la hace el backend, no se ve todavía en el
    formulario.
 7. Ir a `/invoices` (historial): mostrar que la fila de esa factura, junto
    al total en Quetzales, ahora incluye el equivalente en dólares y la
@@ -131,7 +137,7 @@ end-to-end con Playwright controlando un navegador real:
    totales, la fila "Equivalente" con el mismo monto en dólares y la misma
    tasa — el mismo dato que en el historial, ahora en la vista individual.
 9. Repetir la creación de una factura pero pidiendo **más cantidad de la
-   disponible** (por ejemplo, `10` cuando solo hay `3`): mostrar que el
+   disponible** (por ejemplo, `10` cuando solo hay `2`): mostrar que el
    botón de envío se deshabilita solo, y que si se fuerza la petición al
    backend, este la rechaza con `INSUFFICIENT_STOCK` sin tocar el stock.
 10. Ir a `/invoices` como vendedor: mostrar que solo aparece su propia

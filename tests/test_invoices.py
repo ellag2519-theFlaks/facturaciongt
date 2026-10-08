@@ -107,7 +107,7 @@ def test_vendedor_creates_invoice_totals_and_stock_deduct(page):
 
     page.get_by_role("button", name="Crear factura").click()
     status = page.get_by_role("status")
-    status.wait_for()
+    status.get_by_text(re.compile("creada")).wait_for()
     save_evidence(page, "test_vendedor_creates_invoice_totals_and_stock_deduct", "02_invoice_created")
     assert status.is_visible()
 
@@ -146,7 +146,8 @@ def test_invoice_history_scoped_by_role(page):
     page.goto(f"{BASE_URL}/invoices/new")
     _create_invoice_via_ui(page, admin_customer, product_name, 1)
     page.get_by_role("button", name="Crear factura").click()
-    page.get_by_role("status").wait_for()
+    status = page.get_by_role("status")
+    status.get_by_text(re.compile("creada")).wait_for()
 
     # Vendedor creates their own, distinct invoice.
     login(page, *VENDEDOR_USER)
@@ -154,7 +155,8 @@ def test_invoice_history_scoped_by_role(page):
     page.goto(f"{BASE_URL}/invoices/new")
     _create_invoice_via_ui(page, vendedor_customer, product_name, 1)
     page.get_by_role("button", name="Crear factura").click()
-    page.get_by_role("status").wait_for()
+    status = page.get_by_role("status")
+    status.get_by_text(re.compile("creada")).wait_for()
 
     # Vendedor's history shows their own invoice but NOT the admin's.
     # Search for each name specifically -- including the negative check

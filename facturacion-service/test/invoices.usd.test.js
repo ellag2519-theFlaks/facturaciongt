@@ -48,6 +48,22 @@ test('an unreachable exchange service blocks the USD invoice and changes nothing
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM invoices').get().n, invoiceCountBefore)
 })
 
+test('a malformed (null) exchange rate blocks the USD invoice and changes nothing', async () => {
+  const stub = await startStubExchangeService({ rate: null })
+  try {
+    const invoiceCountBefore = db.prepare('SELECT COUNT(*) AS n FROM invoices').get().n
+
+    const res = await request(app).post('/api/invoices').set('Authorization', `Bearer ${vendedorToken}`)
+      .send({ customer_name: 'Cliente USD', payment_currency: 'USD', items: [{ product_id: product.id, quantity: 1 }] })
+
+    assert.equal(res.status, 502)
+    assert.equal(res.body.error.code, 'EXCHANGE_SERVICE_UNAVAILABLE')
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM invoices').get().n, invoiceCountBefore)
+  } finally {
+    await stub.close()
+  }
+})
+
 test('a GTQ invoice is unaffected even when the exchange service is unreachable', async () => {
   process.env.EXCHANGE_SERVICE_URL = 'http://localhost:1'
   const res = await request(app).post('/api/invoices').set('Authorization', `Bearer ${vendedorToken}`)

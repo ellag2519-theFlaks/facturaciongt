@@ -96,8 +96,9 @@ siempre en la forma `{ error: { code, message } }`).
 src/
 ├── components/   ErrorMessage, LoadingSpinner, LoginForm, ProductForm,
 │                 ProductList, StockBadge, InvoiceForm, InvoiceItemRow,
-│                 InvoiceList, ProtectedRoute
-├── pages/        LoginPage, ProductsPage (admin), NewInvoicePage, InvoiceHistoryPage
+│                 InvoiceList, ProtectedRoute, Navbar
+├── pages/        LoginPage, ProductsPage (admin), NewInvoicePage, InvoiceHistoryPage,
+│                 InvoiceDetailPage
 ├── services/     api.client.js (Axios + interceptor JWT + manejo de errores),
 │                 auth.api.js, products.api.js, invoices.api.js
 ├── hooks/        useAuth.js (sesión/rol), useProducts.js
@@ -106,8 +107,11 @@ src/
 
 Rutas: `/login` (login), `/` (página principal), `/invoices/new` (nueva
 factura, admin y vendedor), `/invoices` (historial, acotado por rol),
-`/products` (catálogo e inventario, solo admin). La aplicación no tiene
-barra de navegación: se navega escribiendo la URL directamente — ver el
+`/invoices/:id` (detalle de factura, acotado por rol), `/products`
+(catálogo e inventario, solo admin). La aplicación tiene una barra de
+navegación (`Navbar`) con enlaces a Inicio, Nueva factura e Historial,
+más Productos solo para el rol admin, y a la derecha el usuario/rol
+activo con un botón **Cerrar sesión** — ver el
 [manual de usuario](docs/03-manual-usuario.md).
 
 ## Documentación

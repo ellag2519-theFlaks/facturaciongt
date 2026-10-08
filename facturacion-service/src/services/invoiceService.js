@@ -42,8 +42,12 @@ export async function createInvoice({ customer_name, customer_nit, items, userId
   if (currency === 'USD') {
     try {
       const { rate } = await exchangeClient.getTodayRate()
+      if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) {
+        throw new Error(`invalid exchange rate received: ${rate}`)
+      }
       exchangeRate = rate
-    } catch {
+    } catch (err) {
+      console.error('exchange rate fetch failed:', err.code, err.message)
       throw new AppError(502, 'EXCHANGE_SERVICE_UNAVAILABLE', 'No se pudo obtener la tasa de cambio actual. Intente de nuevo o facture en Quetzales.')
     }
   }
