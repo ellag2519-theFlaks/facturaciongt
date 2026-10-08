@@ -27,6 +27,15 @@ def _create_product_via_ui(page, name, sku, price, stock, category=""):
     page.get_by_role("button", name="Crear").click()
 
 
+def _find_product_row(page, sku):
+    """Returns the product's row locator, after filtering the products
+    table via the search box so a freshly created row is visible even if
+    the dev DB has enough rows to push it past page 1 of the default
+    pagination."""
+    page.get_by_placeholder("Buscar por nombre, SKU, categoría...").fill(sku)
+    return page.locator("tr", has_text=sku)
+
+
 def test_admin_create_product(page):
     login(page, *ADMIN_USER)
     page.goto(f"{BASE_URL}/products")
@@ -35,7 +44,7 @@ def test_admin_create_product(page):
     sku = _unique_sku()
     _create_product_via_ui(page, name, sku, 99.99, 10, "General")
 
-    row = page.locator("tr", has_text=sku)
+    row = _find_product_row(page, sku)
     row.wait_for()
     save_evidence(page, "test_admin_create_product", "01_product_created")
 
@@ -51,14 +60,14 @@ def test_admin_edit_product_price(page):
     sku = _unique_sku()
     _create_product_via_ui(page, name, sku, 50, 5)
 
-    row = page.locator("tr", has_text=sku)
+    row = _find_product_row(page, sku)
     row.wait_for()
 
     row.get_by_role("button", name="Editar").click()
     page.get_by_label("Precio").fill("123.45")
     page.get_by_role("button", name="Guardar cambios").click()
 
-    row = page.locator("tr", has_text=sku)
+    row = _find_product_row(page, sku)
     row.get_by_text("Q 123.45").wait_for()
     save_evidence(page, "test_admin_edit_product_price", "01_price_updated")
 
@@ -73,7 +82,7 @@ def test_admin_delete_product(page):
     sku = _unique_sku()
     _create_product_via_ui(page, name, sku, 20, 3)
 
-    row = page.locator("tr", has_text=sku)
+    row = _find_product_row(page, sku)
     row.wait_for()
 
     # The delete handler uses window.confirm(); accept it so the delete
@@ -95,7 +104,7 @@ def test_admin_duplicate_sku_shows_inline_error(page):
     name_original = f"Producto Original {uuid.uuid4().hex[:6]}"
     _create_product_via_ui(page, name_original, sku, 15, 2)
 
-    row = page.locator("tr", has_text=sku)
+    row = _find_product_row(page, sku)
     row.wait_for()
 
     # Re-use the same SKU for a second product: the backend rejects this

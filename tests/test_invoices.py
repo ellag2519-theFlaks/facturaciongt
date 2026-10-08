@@ -28,6 +28,7 @@ def _create_product_via_ui(page, name, sku, price, stock, category=""):
     if category:
         page.get_by_label("Categoría").fill(category)
     page.get_by_role("button", name="Crear").click()
+    page.get_by_placeholder("Buscar por nombre, SKU, categoría...").fill(sku)
     row = page.locator("tr", has_text=sku)
     row.wait_for()
     return row
@@ -113,6 +114,7 @@ def test_vendedor_creates_invoice_totals_and_stock_deduct(page):
     # Admin checks the product's stock decreased by exactly the invoiced quantity.
     login(page, *ADMIN_USER)
     page.goto(f"{BASE_URL}/products")
+    page.get_by_placeholder("Buscar por nombre, SKU, categoría...").fill(sku)
     row = page.locator("tr", has_text=sku)
     row.wait_for()
     expected_stock = initial_stock - quantity
@@ -123,6 +125,7 @@ def test_vendedor_creates_invoice_totals_and_stock_deduct(page):
     # Vendedor's own invoice appears in their history.
     login(page, *VENDEDOR_USER)
     page.goto(f"{BASE_URL}/invoices")
+    page.get_by_placeholder("Buscar por factura, cliente, NIT, vendedor...").fill(customer_name)
     history_row = page.locator("tr", has_text=customer_name)
     history_row.wait_for()
     save_evidence(page, "test_vendedor_creates_invoice_totals_and_stock_deduct", "04_vendedor_history")
@@ -155,6 +158,7 @@ def test_invoice_history_scoped_by_role(page):
 
     # Vendedor's history shows their own invoice but NOT the admin's.
     page.goto(f"{BASE_URL}/invoices")
+    page.get_by_placeholder("Buscar por factura, cliente, NIT, vendedor...").fill(vendedor_customer)
     page.locator("tr", has_text=vendedor_customer).wait_for()
     save_evidence(page, "test_invoice_history_scoped_by_role", "01_vendedor_history")
     assert page.locator("tr", has_text=vendedor_customer).is_visible()
@@ -163,9 +167,13 @@ def test_invoice_history_scoped_by_role(page):
     # Admin's history shows invoices from both.
     login(page, *ADMIN_USER)
     page.goto(f"{BASE_URL}/invoices")
+    search_box = page.get_by_placeholder("Buscar por factura, cliente, NIT, vendedor...")
+    search_box.fill(admin_customer)
     page.locator("tr", has_text=admin_customer).wait_for()
-    save_evidence(page, "test_invoice_history_scoped_by_role", "02_admin_history")
     assert page.locator("tr", has_text=admin_customer).is_visible()
+    search_box.fill(vendedor_customer)
+    page.locator("tr", has_text=vendedor_customer).wait_for()
+    save_evidence(page, "test_invoice_history_scoped_by_role", "02_admin_history")
     assert page.locator("tr", has_text=vendedor_customer).is_visible()
 
 

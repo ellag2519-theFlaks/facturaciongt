@@ -21,6 +21,7 @@ def _create_product_via_ui(page, name, sku, price, stock, category=""):
     if category:
         page.get_by_label("Categoría").fill(category)
     page.get_by_role("button", name="Crear").click()
+    page.get_by_placeholder("Buscar por nombre, SKU, categoría...").fill(sku)
     row = page.locator("tr", has_text=sku)
     row.wait_for()
     return row
@@ -34,6 +35,7 @@ def _select_product_by_name(page, product_name):
 
 
 def _get_stock_from_products_page(page, sku):
+    page.get_by_placeholder("Buscar por nombre, SKU, categoría...").fill(sku)
     row = page.locator("tr", has_text=sku)
     row.wait_for()
     # ProductList renders stock inside a <span> (StockBadge); it's the only
@@ -125,6 +127,7 @@ def test_backend_rejects_insufficient_stock_and_leaves_stock_unchanged(page, bro
     # Admin (main tab) drops stock to below what tab1 queued, simulating
     # another sale that already consumed some of it.
     admin_page.goto(f"{BASE_URL}/products")
+    admin_page.get_by_placeholder("Buscar por nombre, SKU, categoría...").fill(sku)
     row = admin_page.locator("tr", has_text=sku)
     row.wait_for()
     row.get_by_role("button", name="Editar").click()
