@@ -169,7 +169,7 @@ errores centralizados).
 src/
 ├── components/   ErrorMessage, LoadingSpinner, LoginForm, ProductForm,
 │                 ProductList, StockBadge, InvoiceForm, InvoiceItemRow,
-│                 InvoiceList, ProtectedRoute
+│                 InvoiceList, ProtectedRoute, Navbar
 ├── pages/        LoginPage, ProductsPage (admin), NewInvoicePage, InvoiceHistoryPage,
 │                 InvoiceDetailPage
 ├── services/     api.client.js (Axios + interceptor JWT + normalización de errores),
@@ -192,9 +192,12 @@ Rutas (definidas en `App.jsx`):
 `ProtectedRoute` redirige a `/login` si no hay sesión, y a `/` si el rol no
 tiene acceso a la ruta (p. ej. un vendedor navegando a `/products`).
 
-> **Nota de implementación:** la aplicación no tiene una barra de
-> navegación ni botón de "cerrar sesión" — se navega escribiendo la URL
-> directamente (`/products`, `/invoices`, `/invoices/new`). Ver el
+> **Nota de implementación:** la aplicación sí tiene una barra de
+> navegación (`Navbar`, montada una vez que hay sesión) con enlaces a
+> Inicio, Nueva factura e Historial, más Productos solo si el rol es
+> `admin`; a la derecha muestra el usuario y rol con sesión activa
+> (`{username} ({role})`) y un botón **Cerrar sesión** que limpia la
+> sesión y redirige a `/login`. Ver el
 > [manual de usuario](03-manual-usuario.md) para el detalle.
 
 ## 8. Modelo de datos (SQLite)

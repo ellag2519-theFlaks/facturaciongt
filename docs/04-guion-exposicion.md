@@ -25,11 +25,21 @@ datos** — o se hacen los dos, o no se hace ninguno.
 
 A diferencia de `FinanzasGT` (el proyecto del primer parcial, que sí era
 de microservicios porque solo un servicio podía hablar con el SOAP del
-Banguat), aquí **hay un solo backend**. Productos, inventario y facturas
-son un mismo dominio de negocio — dividirlo en varios servicios habría
-sido complejidad sin beneficio real. El frontend habla con ese único
-backend por HTTP/JSON, y el backend es el único que toca la base de
-datos.
+Banguat), aquí el dominio de negocio — productos, inventario y facturas —
+sigue viviendo en **un solo backend**, `facturacion-service`: son un
+mismo dominio de negocio y dividirlo en varios servicios habría sido
+complejidad sin beneficio real. El frontend habla con ese backend por
+HTTP/JSON, y es el único que toca la base de datos SQLite.
+
+Esto no significa que todo el proyecto sea un solo backend: el tipo de
+cambio es la excepción. Facturar en dólares requiere la tasa real del
+Banco de Guatemala, y ese SOAP de Banguat solo puede ser consumido por un
+componente — el mismo principio que ya obligaba a `FinanzasGT` a tener su
+propio `exchange-service` separado. Por eso este proyecto reutiliza ese
+mismo `exchange-service` tal cual, como un **segundo backend**,
+independiente del dominio de negocio: `facturacion-service` es el único
+componente de este proyecto autorizado a hablarle a él (nadie más, ni
+siquiera el frontend, le habla directamente).
 
 ## 4. Roles y permisos — qué puede hacer cada uno
 
@@ -82,9 +92,13 @@ recuadro de error reutilizable.
 Además del software, el proyecto entrega un pipeline de pruebas
 end-to-end con Playwright controlando un navegador real:
 
-- 4 archivos de prueba (`test_auth.py`, `test_products.py`,
-  `test_invoices.py`, `test_stock_limits.py`), cada uno cubriendo un flujo
-  de negocio completo, no clics sueltos.
+- 5 archivos de prueba (`test_auth.py`, `test_products.py`,
+  `test_invoices.py`, `test_stock_limits.py`, `test_usd_payment.py`), cada
+  uno cubriendo un flujo de negocio completo, no clics sueltos.
+- `test_usd_payment.py` es el único de los 5 archivos con una dependencia
+  real de internet: crea una factura en dólares, lo que hace que el
+  backend llame al `exchange-service` real, y este a su vez al Banco de
+  Guatemala real — las demás pruebas son 100% offline.
 - Cada prueba grabada en video y con capturas de pantalla en sus pasos
   clave.
 - Un solo comando corre toda la batería y genera automáticamente: un
@@ -103,15 +117,28 @@ end-to-end con Playwright controlando un navegador real:
    cómo se calculan subtotal, IVA 12% y total en vivo, y crear la factura.
 5. Volver a `/products` (como admin) y mostrar que el stock bajó de `5` a
    `3`.
-6. Repetir la creación de una factura pero pidiendo **más cantidad de la
+6. Volver a `/invoices/new` (aún como vendedor) y crear otra factura con
+   ese mismo producto, pero esta vez eligiendo **Dólares** en el selector
+   "Moneda de pago" antes de enviar. El formulario sigue mostrando
+   subtotal, IVA 12% y total **en Quetzales** igual que antes — la
+   conversión a dólares la hace el backend, no se ve todavía en el
+   formulario.
+7. Ir a `/invoices` (historial): mostrar que la fila de esa factura, junto
+   al total en Quetzales, ahora incluye el equivalente en dólares y la
+   tasa del día usada (formato `(≈ $X.XX USD, tasa: Y)`) — las facturas en
+   Quetzales no muestran esa parte.
+8. Hacer clic en **Ver detalle** de esa factura y mostrar, en el bloque de
+   totales, la fila "Equivalente" con el mismo monto en dólares y la misma
+   tasa — el mismo dato que en el historial, ahora en la vista individual.
+9. Repetir la creación de una factura pero pidiendo **más cantidad de la
    disponible** (por ejemplo, `10` cuando solo hay `3`): mostrar que el
    botón de envío se deshabilita solo, y que si se fuerza la petición al
    backend, este la rechaza con `INSUFFICIENT_STOCK` sin tocar el stock.
-7. Ir a `/invoices` como vendedor: mostrar que solo aparece su propia
-   factura.
-8. Iniciar sesión como admin y volver a `/invoices`: mostrar que ahora
-   aparecen **todas** las facturas, con la columna "Vendedor" indicando
-   quién generó cada una.
-9. Cerrar la demo mostrando `tests/reports/report.html` (resultado de la
-   suite completa) y una diapositiva de `tests/reports/evidencia.pptx`
-   con la evidencia del mismo flujo que se acaba de demostrar en vivo.
+10. Ir a `/invoices` como vendedor: mostrar que solo aparece su propia
+    factura.
+11. Iniciar sesión como admin y volver a `/invoices`: mostrar que ahora
+    aparecen **todas** las facturas, con la columna "Vendedor" indicando
+    quién generó cada una.
+12. Cerrar la demo mostrando `tests/reports/report.html` (resultado de la
+    suite completa) y una diapositiva de `tests/reports/evidencia.pptx`
+    con la evidencia del mismo flujo que se acaba de demostrar en vivo.
