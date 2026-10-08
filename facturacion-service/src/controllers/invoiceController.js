@@ -33,3 +33,12 @@ export function getInvoiceHandler(req, res, next) {
     next(err)
   }
 }
+
+export async function getExchangeRateHandler(req, res, next) {
+  try {
+    const { rate, date } = await invoiceService.getCurrentExchangeRate()
+    res.status(200).json({ rate, date })
+  } catch (err) {
+    next(err)
+  }
+}

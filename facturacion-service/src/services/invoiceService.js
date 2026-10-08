@@ -25,6 +25,37 @@ function validateCustomerName(customer_name) {
 }
 
 /**
+ * Fetches today's rate from exchange-service and validates it is a usable
+ * number. Any failure — network, timeout, or a malformed rate (null, NaN,
+ * zero, negative) — collapses into the same 502 AppError, since from the
+ * caller's perspective both mean "no rate to charge with right now".
+ * @returns {Promise<{rate: number, date: string}>}
+ */
+async function fetchValidExchangeRate() {
+  try {
+    const result = await exchangeClient.getTodayRate()
+    const { rate } = result
+    if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) {
+      throw new Error(`invalid exchange rate received: ${rate}`)
+    }
+    return result
+  } catch (err) {
+    console.error('exchange rate fetch failed:', err.code, err.message)
+    throw new AppError(502, 'EXCHANGE_SERVICE_UNAVAILABLE', 'No se pudo obtener la tasa de cambio actual. Intente de nuevo o facture en Quetzales.')
+  }
+}
+
+/**
+ * Returns today's exchange rate as reported by exchange-service, for
+ * display before an invoice is created (e.g. a "current rate" label on the
+ * invoice form). Creates nothing.
+ * @returns {Promise<{rate: number, date: string}>}
+ */
+export async function getCurrentExchangeRate() {
+  return fetchValidExchangeRate()
+}
+
+/**
  * Validates and creates an invoice, decrementing stock atomically. When
  * payment_currency is 'USD', the current exchange rate is fetched BEFORE
  * the (synchronous) transaction runs — invoiceModel.createInvoiceWithItems
@@ -40,16 +71,8 @@ export async function createInvoice({ customer_name, customer_nit, items, userId
   const currency = payment_currency === 'USD' ? 'USD' : 'GTQ'
   let exchangeRate = null
   if (currency === 'USD') {
-    try {
-      const { rate } = await exchangeClient.getTodayRate()
-      if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) {
-        throw new Error(`invalid exchange rate received: ${rate}`)
-      }
-      exchangeRate = rate
-    } catch (err) {
-      console.error('exchange rate fetch failed:', err.code, err.message)
-      throw new AppError(502, 'EXCHANGE_SERVICE_UNAVAILABLE', 'No se pudo obtener la tasa de cambio actual. Intente de nuevo o facture en Quetzales.')
-    }
+    const { rate } = await fetchValidExchangeRate()
+    exchangeRate = rate
   }
 
   return invoiceModel.createInvoiceWithItems({
