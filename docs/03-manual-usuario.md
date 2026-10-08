@@ -114,16 +114,22 @@ Disponible para **admin** y **vendedor**.
 
 1. Completar **Cliente** (obligatorio) y, opcionalmente, **NIT** (si se
    deja vacío, la factura queda a nombre de "CF" — consumidor final).
-2. En la sección **Agregar producto**: elegir un producto del selector
+2. Elegir la **Moneda de pago**: **Quetzales** (opción por defecto) o
+   **Dólares**. Si se elige Dólares, el sistema consulta en el momento de
+   crear la factura la tasa de cambio real del día (Banco de Guatemala) y
+   calcula el equivalente en dólares del total — ver la sección 6 más
+   abajo para dónde se muestra ese monto.
+3. En la sección **Agregar producto**: elegir un producto del selector
    (muestra nombre, precio y stock disponible) y una **Cantidad** (entero,
    mínimo 1), luego clic en **Agregar**. El producto se suma al detalle de
    la factura; si se agrega el mismo producto dos veces, las cantidades se
    acumulan en una sola línea.
-3. En el detalle de la factura se puede ajustar la cantidad de cada línea
+4. En el detalle de la factura se puede ajustar la cantidad de cada línea
    o quitarla con el botón correspondiente.
-4. Debajo del detalle se muestran, en vivo, **Subtotal**, **IVA (12%)** y
-   **Total**.
-5. Clic en **Crear factura**.
+5. Debajo del detalle se muestran, en vivo, **Subtotal**, **IVA (12%)** y
+   **Total** — siempre en Quetzales; los precios de los productos nunca
+   cambian de moneda, aunque se facture en dólares.
+6. Clic en **Crear factura**.
 
 El botón **Crear factura** permanece deshabilitado mientras:
 
@@ -138,9 +144,19 @@ operación completa con el error **"Stock insuficiente para {producto}"**
 y no se crea ninguna factura ni se modifica el inventario.
 
 Al crear la factura exitosamente, aparece un mensaje de confirmación con
-el número de factura (formato `FAC-000001`) y el total, y el formulario se
-limpia para la siguiente venta. El stock de los productos vendidos queda
-descontado de inmediato.
+el número de factura (formato `FAC-000001`) y el total **en Quetzales**
+(el mensaje de confirmación no muestra el monto en dólares aunque se haya
+elegido esa moneda — el equivalente aparece en el historial y en el
+detalle de la factura, ver sección 6), y el formulario se limpia para la
+siguiente venta. El stock de los productos vendidos queda descontado de
+inmediato.
+
+> **Facturar en dólares sin conexión al tipo de cambio:** si el sistema no
+> puede obtener la tasa de cambio del día (por ejemplo, sin conexión a
+> internet), se muestra el error **"No se pudo obtener la tasa de cambio
+> actual. Intente de nuevo o facture en Quetzales."** y la factura **no se
+> crea** — no queda ninguna factura a medias ni se descuenta stock. En ese
+> caso, reintentar más tarde o cambiar la **Moneda de pago** a Quetzales.
 
 ## 6. Ambos roles — historial de facturas (`/invoices`)
 
@@ -151,8 +167,32 @@ Disponible para **admin** y **vendedor**, pero con alcance distinto:
   quién las generó.
 
 La tabla muestra: **No. Factura**, **Cliente**, **NIT**, **Fecha**,
-**Vendedor** (usuario que generó la factura) y **Total**. Si no hay
-facturas para mostrar, aparece el texto "No hay facturas registradas."
+**Vendedor** (usuario que generó la factura), **Total** y un enlace **Ver
+detalle**. Si no hay facturas para mostrar, aparece el texto "No hay
+facturas registradas."
+
+Si la factura se pagó en dólares, la columna **Total** muestra el monto
+en Quetzales seguido del equivalente y la tasa usada, por ejemplo:
+
+> Total: Q 112.00 (≈ $14.35 USD, tasa: 7.81)
+
+Las facturas en Quetzales no muestran nada adicional en esa columna.
+
+### 6.1 Detalle de una factura (`/invoices/:id`)
+
+Clic en **Ver detalle** desde cualquier fila del historial para ver la
+factura completa: datos del cliente y del vendedor, el detalle de
+productos facturados (cantidad, precio unitario, subtotal por línea), y
+los totales (**Subtotal**, **IVA (12%)**, **Total**). Si la factura se
+pagó en dólares, debajo del total aparece una línea adicional
+**Equivalente**, con el monto en dólares y la tasa de cambio usada en esa
+factura, por ejemplo:
+
+> Equivalente: $14.35 USD (tasa: 7.81)
+
+El acceso a esta pantalla respeta el mismo alcance por rol que el
+historial: un vendedor no puede ver el detalle de una factura ajena (recibe
+el mismo error que si la factura no existiera).
 
 ## 7. Mensajes de carga y de error
 

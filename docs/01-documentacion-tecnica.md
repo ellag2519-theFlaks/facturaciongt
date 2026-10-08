@@ -4,10 +4,14 @@
 
 Aplicación web para gestionar un catálogo de productos, llevar control de
 inventario, y generar facturas de venta que descuentan stock
-automáticamente al momento de facturar. Proyecto de Análisis de Sistemas II
-(UMG, 8vo. semestre), con el mismo patrón de capas y manejo de errores que
-`FinanzasGT` (proyecto de referencia del primer parcial), pero como un solo
-backend en lugar de microservicios.
+automáticamente al momento de facturar. Las facturas pueden pagarse en
+Quetzales o en dólares, con conversión a la tasa de cambio real del día.
+Proyecto de Análisis de Sistemas II (UMG, 8vo. semestre), con el mismo
+patrón de capas y manejo de errores que `FinanzasGT` (proyecto de
+referencia del primer parcial), y con el dominio de negocio (productos,
+inventario, facturas) en un solo backend en lugar de microservicios — la
+única excepción es un segundo servicio, `exchange-service`, reutilizado
+tal cual de `FinanzasGT` para el tipo de cambio real (ver sección 6).
 
 ## 2. Objetivo general
 
@@ -32,13 +36,21 @@ presentación PowerPoint generada automáticamente con las evidencias.
 
 **Dentro de alcance:** CRUD de productos e inventario; generación de
 facturas con IVA; descuento atómico de stock; login con dos roles vía JWT;
-historial de facturas acotado por rol; suite de pruebas E2E (Python +
-Playwright) con video, reporte HTML y PPTX; documentación del proyecto.
+historial de facturas acotado por rol; pago de facturas en Quetzales o en
+dólares, con conversión a la tasa de cambio real del día consumida de
+`exchange-service`; suite de pruebas E2E (Python + Playwright) con video,
+reporte HTML y PPTX; documentación del proyecto.
 
 **Fuera de alcance (explícito):** facturación electrónica real (FEL/SAT);
 múltiples sucursales/bodegas; reportes financieros avanzados o dashboards
 analíticos; recuperación de contraseña o registro público de usuarios (los
-usuarios se crean con un script de seed); notificaciones.
+usuarios se crean con un script de seed); notificaciones; cambiar los
+precios base de los productos (siguen siempre en Quetzales); conversión a
+dólares por línea de producto (la conversión aplica solo al total de la
+factura); historial propio de tasas de cambio (se usa la tasa del día que
+devuelve `exchange-service`, que internamente la cachea 1 hora); modificar
+`exchange-service` (se reutiliza tal cual de `FinanzasGT`); monedas
+distintas de GTQ/USD.
 
 ## 5. Tecnologías utilizadas
 
@@ -46,6 +58,7 @@ usuarios se crean con un script de seed); notificaciones.
 |---|---|
 | Frontend | React 19, Vite 8, React Router 7 (`react-router-dom@7.18.2`), Axios, Tailwind CSS v4 |
 | Backend | Node.js, Express 5, `better-sqlite3`, `bcrypt`, `jsonwebtoken`, `cors`, `dotenv`, `nodemon` (dev) |
+| `exchange-service` | Node.js, Express 5, `axios`, `xml2js` (parseo del SOAP de Banguat), `cors`, `dotenv`, `nodemon` (dev) — reutilizado sin cambios de `FinanzasGT` |
 | Base de datos | SQLite (archivo único, vía `better-sqlite3`) |
 | Pruebas E2E | Python, `pytest`, `pytest-playwright`, `pytest-html`, `python-pptx` |
 
@@ -53,37 +66,61 @@ usuarios se crean con un script de seed); notificaciones.
 
 ### 6.1 Diagrama de arquitectura
 
-Un solo backend (no microservicios): a diferencia de `FinanzasGT`, aquí no
-hay una integración externa (como el SOAP del Banguat) que justifique
-dividir el dominio en varios servicios. Productos, inventario y facturas
-son un solo dominio cohesivo.
+El dominio de negocio (productos, inventario, facturas) sigue viviendo en
+**un solo backend**, `facturacion-service`: a diferencia de `FinanzasGT`,
+no hay una integración externa que justifique dividir ese dominio en
+varios servicios. La única excepción es el tipo de cambio: facturar en
+dólares requiere la tasa real del Banco de Guatemala, y ese SOAP solo
+puede ser consumido por un componente (mismo principio que en
+`FinanzasGT`). Por eso `exchange-service` — reutilizado tal cual de
+`FinanzasGT`, sin cambios de lógica — corre como un segundo proceso HTTP
+independiente, consumido únicamente por `facturacion-service`.
 
 ```
-┌──────────────┐        HTTP/JSON        ┌───────────────────────┐
-│   frontend    │ ──────────────────────▶ │  facturacion-service  │
-│ React + Vite  │ ◀────────────────────── │   Node + Express 5    │
-│  (5173)       │      { error: {…} }      │       (3001)          │
-└──────────────┘                          └───────────┬───────────┘
-                                                        │ better-sqlite3
-                                                        ▼
-                                              facturacion.db (SQLite)
+┌──────────────┐  HTTP/JSON   ┌───────────────────────┐  HTTP/JSON   ┌────────────────────┐   SOAP   ┌───────────────┐
+│   frontend    │─────────────▶│  facturacion-service  │─────────────▶│  exchange-service   │─────────▶│    Banguat    │
+│ React + Vite  │◀─────────────│   Node + Express 5    │◀─────────────│   Node + Express 5   │◀─────────│ (SOAP externo)│
+│   (5173)      │ {error:{…}}  │        (3001)          │ {rate, date}  │       (3002)         │          │               │
+└──────────────┘               └───────────┬───────────┘               └────────────────────┘          └───────────────┘
+                                             │ better-sqlite3
+                                             ▼
+                                   facturacion.db (SQLite)
 ```
 
 ### 6.2 Responsabilidad de cada componente
 
 - **`frontend`:** UI en React. Consume `facturacion-service` vía HTTP/JSON
   usando Axios, con un interceptor que adjunta el JWT y normaliza errores.
-- **`facturacion-service`:** único backend. Expone la API REST, valida
-  reglas de negocio, calcula IVA, y persiste en SQLite dentro de
-  transacciones cuando una operación toca varias tablas (crear factura).
+  Nunca llama a `exchange-service` directamente: solo envía
+  `payment_currency` al crear la factura.
+- **`facturacion-service`:** único backend del dominio de negocio. Expone
+  la API REST, valida reglas de negocio, calcula IVA, persiste en SQLite
+  dentro de transacciones cuando una operación toca varias tablas (crear
+  factura), y es el **único componente de este proyecto autorizado a
+  llamar a `exchange-service`** — lo hace vía `src/clients/exchangeClient.js`
+  cuando una factura se crea con `payment_currency: 'USD'`.
+- **`exchange-service`:** reutilizado sin cambios del proyecto
+  `FinanzasGT` (primer parcial). Es el **único componente de todo el
+  proyecto autorizado a hablar con el SOAP del Banco de Guatemala**
+  (`BANGUAT_SERVICE_URL`); expone la tasa del día, cacheada 1 hora, vía
+  `GET /api/exchange-rate/today` → `{ rate, date }`.
 
 ### 6.3 Diagrama de comunicación (protocolos)
 
-El frontend nunca habla directamente con SQLite; todo pasa por
-`facturacion-service` vía HTTP/JSON. Las rutas protegidas requieren un
-header `Authorization: Bearer <token>`; las que además exigen rol
-(`admin`) pasan primero por el middleware de autenticación y luego por el
-de autorización.
+El frontend nunca habla directamente con SQLite ni con `exchange-service`;
+todo pasa por `facturacion-service` vía HTTP/JSON. Las rutas protegidas
+requieren un header `Authorization: Bearer <token>`; las que además exigen
+rol (`admin`) pasan primero por el middleware de autenticación y luego por
+el de autorización.
+
+Cuando `POST /api/invoices` se llama con `payment_currency: 'USD'`,
+`facturacion-service` primero hace `GET /api/exchange-rate/today` contra
+`exchange-service` (HTTP, con timeout de 5s) **antes** de abrir la
+transacción SQLite — `better-sqlite3`'s `db.transaction()` exige una
+función completamente síncrona, y esa llamada de red es asíncrona, así que
+no puede ocurrir dentro de la transacción atómica existente. Si la llamada
+falla, no se abre ninguna transacción y no se escribe nada (ver sección 10
+para el detalle del orden de ejecución).
 
 ## 7. Estructura del proyecto
 
@@ -91,6 +128,7 @@ de autorización.
 Proyecto de facturación/
 ├── frontend/                # React 19 + Vite + React Router + Axios + Tailwind CSS v4
 ├── facturacion-service/     # Node.js + Express 5
+├── exchange-service/        # Node.js + Express 5 — reutilizado de FinanzasGT, puerto 3002
 ├── tests/                   # Python + pytest-playwright (E2E)
 └── docs/                    # esta documentación
 ```
@@ -101,6 +139,7 @@ Proyecto de facturación/
 src/
 ├── app.js                 # configuración de Express, montaje de rutas y middlewares
 ├── config/env.js          # lectura y defaults de variables de entorno
+├── clients/                 exchangeClient.js (HTTP a exchange-service; ver nota abajo)
 ├── routes/                 authRoutes.js, productRoutes.js, invoiceRoutes.js
 ├── controllers/             authController.js, productController.js, invoiceController.js
 ├── services/                authService.js, productService.js, invoiceService.js
@@ -115,6 +154,15 @@ request/response) → `services` (validación y lógica de negocio) →
 `models` (queries SQLite) → `middlewares` (auth JWT, autorización por rol,
 errores centralizados).
 
+> **Nota de implementación — `exchangeClient.js`:** a diferencia del resto
+> de variables de entorno (leídas una sola vez en `config/env.js` al
+> arrancar), `exchangeClient.js` lee `process.env.EXCHANGE_SERVICE_URL`
+> directamente dentro de `getTodayRate()`, en cada llamada — no a través
+> de `config/env.js`. Es una decisión deliberada de testabilidad: las
+> pruebas de backend (`node --test`) pueden apuntar esa variable a un
+> servicio-stub local, por prueba, sin reiniciar el proceso ni recargar
+> ningún módulo de configuración cacheado.
+
 ### 7.2 Estructura real de `frontend/src/`
 
 ```
@@ -122,7 +170,8 @@ src/
 ├── components/   ErrorMessage, LoadingSpinner, LoginForm, ProductForm,
 │                 ProductList, StockBadge, InvoiceForm, InvoiceItemRow,
 │                 InvoiceList, ProtectedRoute
-├── pages/        LoginPage, ProductsPage (admin), NewInvoicePage, InvoiceHistoryPage
+├── pages/        LoginPage, ProductsPage (admin), NewInvoicePage, InvoiceHistoryPage,
+│                 InvoiceDetailPage
 ├── services/     api.client.js (Axios + interceptor JWT + normalización de errores),
 │                 auth.api.js, products.api.js, invoices.api.js
 ├── hooks/        useAuth.js (sesión/rol, contexto), useProducts.js (CRUD + estado)
@@ -137,6 +186,7 @@ Rutas (definidas en `App.jsx`):
 | `/` | autenticado | página principal (placeholder, sin menú) |
 | `/invoices/new` | autenticado (admin, vendedor) | `NewInvoicePage` |
 | `/invoices` | autenticado (admin, vendedor) | `InvoiceHistoryPage` |
+| `/invoices/:id` | autenticado (admin, vendedor — solo las propias) | `InvoiceDetailPage` |
 | `/products` | autenticado, rol `admin` | `ProductsPage` |
 
 `ProtectedRoute` redirige a `/login` si no hay sesión, y a `/` si el rol no
@@ -195,6 +245,28 @@ CREATE TABLE invoice_items (
 `invoice_items.product_name` y `unit_price` guardan una copia del producto
 al momento de la venta, para que el historial no cambie si el producto se
 renombra o cambia de precio después.
+
+**Pago en dólares — columnas agregadas a `invoices`:** el `CREATE TABLE`
+de `invoices` arriba es el original; `schema.js` le agrega estas 3
+columnas con `ALTER TABLE` (no se recreó la tabla):
+
+```sql
+ALTER TABLE invoices ADD COLUMN payment_currency TEXT NOT NULL DEFAULT 'GTQ' CHECK (payment_currency IN ('GTQ', 'USD'));
+ALTER TABLE invoices ADD COLUMN exchange_rate REAL;
+ALTER TABLE invoices ADD COLUMN total_usd REAL;
+```
+
+`exchange_rate` y `total_usd` quedan `NULL` cuando `payment_currency` es
+`'GTQ'` (el default). `subtotal`, `tax` y `total` siguen siendo siempre
+los montos en Quetzales — nunca se recalculan ni se sobrescriben en
+dólares, con o sin pago en USD.
+
+**Idempotencia de la migración:** SQLite no soporta
+`ADD COLUMN IF NOT EXISTS`, así que `schema.js` comprueba con
+`PRAGMA table_info(invoices)` si cada columna ya existe antes de intentar
+agregarla, y solo ejecuta el `ALTER TABLE` correspondiente si falta. Esto
+mantiene a `schema.js` seguro de ejecutar en cada arranque, igual que el
+resto del esquema (que ya usa `CREATE TABLE IF NOT EXISTS`).
 
 Al listar facturas (`GET /api/invoices`), el backend hace `JOIN` con
 `users` y agrega `created_by_username` a cada fila (el campo `created_by`
@@ -259,6 +331,22 @@ vendedor en vez de solo su id.
   contraseña incorrecta para un usuario que sí existe devuelven el mismo
   error `INVALID_CREDENTIALS`, por la misma razón (no revelar si un
   usuario existe).
+- **Pago en dólares (`payment_currency`):** `POST /api/invoices` acepta un
+  campo opcional `payment_currency: 'GTQ' | 'USD'`; cualquier valor
+  distinto de exactamente `'USD'` (incluido omitirlo) se trata como
+  `'GTQ'`, el comportamiento actual sin cambios. Si se pide `'USD'`,
+  `invoiceService.createInvoice` llama a `exchangeClient.getTodayRate()`
+  **antes** de invocar la transacción atómica (ver sección 6.3): si esa
+  llamada falla (timeout, servicio inalcanzable, o respuesta de error),
+  se lanza `AppError(502, 'EXCHANGE_SERVICE_UNAVAILABLE', ...)` y **no se
+  crea la factura** — no hay inserciones parciales ni descuento de stock.
+  Si la tasa se obtuvo con éxito, la transacción corre exactamente igual
+  que para una factura en Quetzales (mismas validaciones de stock, mismo
+  cálculo de `subtotal`/`tax`/`total`) y, como último paso dentro de esa
+  misma transacción, calcula `total_usd = round(total / tasa, 2)` y
+  guarda `payment_currency`, `exchange_rate` (la tasa usada) y `total_usd`
+  junto con la factura — sin volver a llamar a la red, ya es aritmética
+  simple con la tasa obtenida en el primer paso.
 
 ## 11. Autenticación
 
@@ -288,6 +376,18 @@ vendedor en vez de solo su id.
 | `SEED_ADMIN_PASSWORD` | `admin123` | Contraseña del admin creado por el seed |
 | `SEED_VENDEDOR_USERNAME` | `vendedor` | Usuario vendedor creado por el seed |
 | `SEED_VENDEDOR_PASSWORD` | `vendedor123` | Contraseña del vendedor creado por el seed |
+| `EXCHANGE_SERVICE_URL` | `http://localhost:3002` | Base URL de `exchange-service`, usada por `exchangeClient.js` al facturar en dólares. Mismo nombre de variable que usa `finance-service` en `FinanzasGT` para ubicar a este mismo `exchange-service` |
+
+### `exchange-service/.env`
+
+Reutilizado tal cual de `FinanzasGT`, variables idénticas:
+
+| Variable | Default | Descripción |
+|---|---|---|
+| `PORT` | `3002` | Puerto del servicio |
+| `BANGUAT_SERVICE_URL` | `https://banguat.gob.gt/variables/ws/TipoCambio.asmx` | Endpoint SOAP real del Banco de Guatemala |
+| `REQUEST_TIMEOUT_MS` | `5000` | Timeout de la llamada SOAP a Banguat |
+| `CACHE_DURATION_MS` | `3600000` | Duración del cacheo en memoria de la tasa del día (1 hora) |
 
 ### `frontend/.env`
 
@@ -329,7 +429,18 @@ Códigos realmente usados en el código:
 | `NOT_FOUND` | 404 | Factura inexistente, factura ajena (vendedor), o ruta no encontrada | "Factura no encontrada" / "Ruta no encontrada" |
 | `DUPLICATE_SKU` | 409 | SKU repetido al crear/editar un producto | "El SKU ya existe" |
 | `INSUFFICIENT_STOCK` | 409 | Stock agregado insuficiente para una o más líneas de la factura | "Stock insuficiente para {nombre del producto}" |
+| `EXCHANGE_SERVICE_UNAVAILABLE` | 502 | `payment_currency: 'USD'` y `exchangeClient.getTodayRate()` falla (timeout, `exchange-service` inalcanzable, o `exchange-service` responde con error) — lanzado desde `invoiceService.createInvoice`, antes de abrir la transacción | "No se pudo obtener la tasa de cambio actual. Intente de nuevo o facture en Quetzales." |
 | `INTERNAL_ERROR` | 500 | Cualquier error no controlado | — |
+
+**Nota — `exchangeClient.js` distingue internamente, `EXCHANGE_SERVICE_UNAVAILABLE`
+no:** el cliente HTTP hacia `exchange-service` (`src/clients/exchangeClient.js`)
+lanza errores internos con `code: 'EXCHANGE_TIMEOUT'`,
+`'EXCHANGE_UNAVAILABLE'` o `'EXCHANGE_ERROR_RESPONSE'` según la causa
+exacta (timeout, servicio inalcanzable, o respuesta de error). De cara al
+cliente HTTP de `facturacion-service` (y por lo tanto al frontend), los
+tres casos colapsan siempre en el mismo `EXCHANGE_SERVICE_UNAVAILABLE`
+(502) — el vendedor no necesita la causa técnica exacta, solo que debe
+reintentar o facturar en Quetzales.
 
 ## 14. API — `facturacion-service`
 
@@ -347,7 +458,15 @@ de `/api`, sin autenticación).
 | `PATCH /api/products/:id/stock` | admin | Ajuste manual de stock por `delta` (positivo o negativo); rechaza si el resultado quedaría negativo |
 | `GET /api/invoices` | admin, vendedor | Lista facturas (admin: todas; vendedor: solo las propias, filtradas por `created_by`); cada fila incluye `created_by_username` |
 | `GET /api/invoices/:id` | admin, vendedor (propias) | Detalle de factura con sus `items`; 404 uniforme si no es propia o no existe |
-| `POST /api/invoices` | admin, vendedor | Crea factura: `{ customer_name, customer_nit?, items: [{ product_id, quantity }] }`. Transacción con cálculo de IVA/total y descuento de stock |
+| `POST /api/invoices` | admin, vendedor | Crea factura: `{ customer_name, customer_nit?, items: [{ product_id, quantity }], payment_currency? }`. Transacción con cálculo de IVA/total y descuento de stock |
+
+`payment_currency` es opcional (`'GTQ' \| 'USD'`, default `'GTQ'`) — cambio
+aditivo que no rompe el contrato previo de `POST /api/invoices`. La
+respuesta de los 3 endpoints de arriba siempre incluye `payment_currency`,
+`exchange_rate` y `total_usd` (estos dos últimos `null` cuando la factura
+es en Quetzales). Si se pide `'USD'` y no se puede obtener la tasa del
+día, la factura responde `502` / `EXCHANGE_SERVICE_UNAVAILABLE` (sección
+13) y no se crea.
 
 No hay `PUT`/`DELETE` para facturas (inmutables una vez emitidas).
 
@@ -362,8 +481,25 @@ decremento vía `PATCH`.
 ## 15. Estrategia de QA automatizada (Python + Playwright)
 
 - **`pytest-playwright`** corre las pruebas contra la app real: frontend en
-  `http://localhost:5173`, backend en `http://localhost:3001`. Ambos deben
-  estar corriendo antes de ejecutar la suite.
+  `http://localhost:5173`, backend en `http://localhost:3001`. Los 3
+  servicios (`exchange-service`, `facturacion-service`, `frontend`) deben
+  estar corriendo antes de ejecutar la suite completa.
+- **`test_usd_payment.py` es la única prueba de todo el proyecto con
+  dependencia de red real:** crea una factura en dólares, lo que hace que
+  `facturacion-service` llame al `exchange-service` real, y este a su vez
+  al SOAP real del Banco de Guatemala — nada se simula ahí. Como la tasa
+  real cambia a diario y no se conoce de antemano, esta prueba nunca
+  afirma una tasa o total en dólares exactos: lee lo que la página
+  realmente muestra y lo cruza contra sí mismo (`total_gtq / tasa_mostrada
+  ≈ total_usd_mostrado`) y contra la matemática en Quetzales (que la tasa
+  real no puede afectar). Si no hay internet o `banguat.gob.gt` no
+  responde, esta prueba falla por una causa ambiental, no por un defecto
+  de código — las demás pruebas E2E del proyecto son 100% offline.
+- En el backend (`facturacion-service`, `node --test`), en cambio, el
+  cliente `exchangeClient.js` se simula/stubea (`test/helpers/stubExchangeService.js`)
+  en las pruebas de `invoiceService`/creación de facturas — esa suite no
+  llama al `exchange-service` real ni a internet, para mantenerse rápida y
+  confiable.
 - **Video por prueba:** flag `--video=on`, guardado en `tests/videos/`
   (configurado vía `addopts = --output=videos` en `pytest.ini`).
 - **Screenshots por escenario:** `save_evidence(page, test_name, step_name)`
@@ -385,6 +521,7 @@ decremento vía `PATCH`.
 | `test_products.py` | `test_admin_create_product`, `test_admin_edit_product_price`, `test_admin_delete_product`, `test_admin_duplicate_sku_shows_inline_error`, `test_vendedor_redirected_from_products` |
 | `test_invoices.py` | `test_vendedor_creates_invoice_totals_and_stock_deduct`, `test_invoice_history_scoped_by_role`, `test_new_invoice_submit_disabled_until_item_added` |
 | `test_stock_limits.py` | `test_adding_quantity_over_stock_disables_submit`, `test_backend_rejects_insufficient_stock_and_leaves_stock_unchanged` |
+| `test_usd_payment.py` | `test_create_usd_invoice_shows_dollar_equivalent` (única prueba con dependencia de red real — ver arriba) |
 
 Cada archivo cubre un flujo de negocio completo (login → acción →
 resultado esperado), no clics sueltos aislados, para que el video y las

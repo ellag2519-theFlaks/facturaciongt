@@ -8,14 +8,23 @@ usuario (administrador y vendedor) autenticados con JWT.
 
 A diferencia de `FinanzasGT` (proyecto del primer parcial, con varios
 microservicios porque solo uno de ellos podía hablar con el SOAP del
-Banguat), aquí **hay un solo backend**: productos, inventario y facturas
-son un mismo dominio cohesivo, sin una integración externa que justifique
-dividirlo.
+Banguat), el dominio de negocio de este proyecto (productos, inventario y
+facturas) vive en **un solo backend**, `facturacion-service`: no hay una
+integración externa que justifique dividirlo.
+
+La única excepción es el tipo de cambio: facturar en dólares requiere la
+tasa real del Banco de Guatemala, y ese SOAP solo puede ser consumido por
+un componente (mismo principio que en `FinanzasGT`). Por eso se reutilizó
+tal cual, sin modificarlo, el `exchange-service` de `FinanzasGT` como un
+segundo proceso HTTP independiente — `facturacion-service` es el único
+componente de este proyecto autorizado a llamarlo; el frontend nunca lo
+hace directamente, solo envía `payment_currency` al crear la factura.
 
 ```
 Proyecto de facturación/
 ├── frontend/                # React + Vite (UI)
 ├── facturacion-service/     # Express — API de productos, inventario y facturas
+├── exchange-service/        # Express — reutilizado de FinanzasGT, solo tasa de cambio (Banguat)
 └── tests/                   # Python + pytest-playwright (E2E)
 ```
 
@@ -25,6 +34,7 @@ Proyecto de facturación/
 |---|---|---|
 | frontend | React 19 + Vite | 5173 |
 | facturacion-service | Node + Express 5 | 3001 |
+| exchange-service | Node + Express 5 | 3002 |
 
 ## Stack
 
@@ -32,6 +42,9 @@ Proyecto de facturación/
   Axios, Tailwind CSS v4.
 - **Backend:** Node.js, Express 5, `better-sqlite3`, `bcrypt`,
   `jsonwebtoken`, `cors`, `dotenv`, `nodemon` (dev).
+- **exchange-service:** Node.js, Express 5, `axios`, `xml2js` (parseo del
+  SOAP de Banguat), `cors`, `dotenv`, `nodemon` (dev) — reutilizado sin
+  cambios de `FinanzasGT`.
 - **Base de datos:** SQLite (`better-sqlite3`), un solo archivo en
   `facturacion-service/data/`.
 - **Pruebas E2E:** Python, `pytest-playwright`, `pytest-html`,
@@ -40,11 +53,16 @@ Proyecto de facturación/
 ## Cómo levantar cada parte
 
 ```
+cd exchange-service && npm install && npm run dev                                   # Tasa de cambio — http://localhost:3002 (GET /health)
 cd facturacion-service && npm install && node src/database/seed.js && npm run dev   # API — http://localhost:3001 (GET /health)
 cd frontend && npm install && npm run dev                                           # UI  — http://localhost:5173
 cd tests && py -m pip install -r requirements.txt && py -m playwright install chromium
 cd tests && py -m pytest --video=on --html=reports/report.html -v && py generate_report.py
 ```
+
+La demo en vivo y la suite E2E completa ahora requieren los **3 servidores**
+corriendo (antes 2) y conectividad a internet real (para facturar en
+dólares y para el escenario E2E de pago en USD).
 
 Cada parte necesita su propio `.env` (copiado de su `.env.example`
 correspondiente: `facturacion-service/.env.example`,
@@ -65,7 +83,7 @@ con las variables requeridas y los valores por defecto, está en el
 | `PATCH /api/products/:id/stock` | admin | Ajuste manual de stock |
 | `GET /api/invoices` | admin, vendedor | Lista facturas (vendedor: solo las propias) |
 | `GET /api/invoices/:id` | admin, vendedor (propias) | Detalle de factura |
-| `POST /api/invoices` | admin, vendedor | Crea factura (transacción con descuento de stock) |
+| `POST /api/invoices` | admin, vendedor | Crea factura (transacción con descuento de stock); acepta `payment_currency: 'GTQ'\|'USD'` opcional (default `'GTQ'`) |
 
 Arquitectura interna: `routes` → `controllers` → `services` (validación,
 cálculo de IVA, transacciones) → `models` (queries SQLite) →
@@ -100,12 +118,16 @@ técnica, manual de instalación, manual de usuario, y guion de exposición.
 ## Estado del proyecto
 
 **Backend completo:** autenticación JWT, CRUD de productos, facturación
-con IVA y descuento atómico de stock, manejo de errores centralizado.
+con IVA y descuento atómico de stock, manejo de errores centralizado,
+pago de facturas en dólares con tasa de cambio real vía `exchange-service`.
 **Frontend completo:** login, catálogo de productos (admin), creación de
-facturas, historial acotado por rol.
-**Pipeline de QA completo:** 4 archivos de pruebas E2E con Playwright
-(login, productos, facturación, límites de stock), video por prueba,
-reporte HTML, y generación automática de una presentación PowerPoint con
-las evidencias.
+facturas (con selector de moneda de pago), historial y detalle de factura
+acotados por rol, con el equivalente en dólares cuando aplica.
+**Pipeline de QA completo:** 5 archivos de pruebas E2E con Playwright (14
+pruebas: login, productos, facturación, límites de stock, y pago en USD),
+video por prueba, reporte HTML, y generación automática de una
+presentación PowerPoint con las evidencias. El escenario de pago en USD es
+el único de toda la suite que depende de internet real (consume el SOAP
+real del Banco de Guatemala a través de `exchange-service`).
 **Documentación completa:** técnica, instalación, usuario, y guion de
 exposición — ver [`docs/`](docs/README.md).
