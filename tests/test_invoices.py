@@ -157,11 +157,20 @@ def test_invoice_history_scoped_by_role(page):
     page.get_by_role("status").wait_for()
 
     # Vendedor's history shows their own invoice but NOT the admin's.
+    # Search for each name specifically -- including the negative check
+    # -- so neither assertion depends on which page an unfiltered list
+    # would put a given row on; the second fill's effect is confirmed by
+    # waiting for the first search's row to disappear before asserting
+    # the negative, so the check can't pass vacuously on a stale render.
     page.goto(f"{BASE_URL}/invoices")
-    page.get_by_placeholder("Buscar por factura, cliente, NIT, vendedor...").fill(vendedor_customer)
+    search_box = page.get_by_placeholder("Buscar por factura, cliente, NIT, vendedor...")
+    search_box.fill(vendedor_customer)
     page.locator("tr", has_text=vendedor_customer).wait_for()
     save_evidence(page, "test_invoice_history_scoped_by_role", "01_vendedor_history")
     assert page.locator("tr", has_text=vendedor_customer).is_visible()
+
+    search_box.fill(admin_customer)
+    page.locator("tr", has_text=vendedor_customer).wait_for(state="detached")
     assert page.locator("tr", has_text=admin_customer).count() == 0
 
     # Admin's history shows invoices from both.
