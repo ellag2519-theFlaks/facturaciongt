@@ -24,7 +24,8 @@
 // Verificado funcionando end-to-end: build #4, 82/82 pruebas (63 backend +
 // 19 E2E), evidencia.pptx/report.html/videos archivados correctamente.
 // Build #5 (fallo controlado) y #6/#7 (corrección) también verificados en
-// Fase 7 del plan de pruebas.
+// Fase 7 del plan de pruebas. Build #9 verifica la etapa de npm audit
+// (con npm-audit.json archivado por servicio).
 pipeline {
     // customWorkspace apunta directo a la carpeta real del proyecto en vez
     // de que Jenkins clone el repo a su propio workspace -- el proyecto no

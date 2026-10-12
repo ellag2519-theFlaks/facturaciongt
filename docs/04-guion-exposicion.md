@@ -158,10 +158,18 @@ end-to-end con Playwright controlando un navegador real:
 ## 10. Automatización con Jenkins — guion paso a paso
 
 El proyecto tiene instalado Jenkins LTS localmente (`http://localhost:8081`),
-con un pipeline (`Jenkinsfile`, 7 etapas) que corre toda la batería de
+con un pipeline (`Jenkinsfile`, 8 etapas) que corre toda la batería de
 pruebas — 63 pruebas de backend (`node:test`) y 19 E2E (Playwright) — y
 publica los resultados individuales en Jenkins vía el plugin JUnit, además
 de archivar videos, capturas, el reporte HTML y la presentación PPTX.
+
+El pipeline también incluye una etapa de **auditoría de seguridad de
+dependencias** (`npm audit`, una por cada uno de los 3 servicios Node), que
+reporta vulnerabilidades conocidas sin bloquear el build — el mismo
+criterio que ya se usó con el hallazgo de falta de rate-limiting en login
+(`NF-SEG-01`): se documenta, no se corrige automáticamente sin autorización
+aparte. El reporte completo queda archivado en `npm-audit.json` por
+servicio.
 
 **Nota técnica para quien lo demuestre:** el pipeline corre directamente
 sobre la carpeta real del proyecto (`customWorkspace`), no sobre una copia
