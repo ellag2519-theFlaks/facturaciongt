@@ -18,6 +18,11 @@ RESULTS_FILE = REPORTS_DIR / "results.json"
 
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:5173")
 
+# facturacion-service's own origin, used only by test_volume.py to seed
+# data directly via API calls (clicking through the UI 100+ times would be
+# impractically slow).
+API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:3001/api")
+
 ADMIN_USER = (
     os.environ.get("ADMIN_USERNAME", "admin"),
     os.environ.get("ADMIN_PASSWORD", "admin123"),
