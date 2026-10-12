@@ -182,3 +182,34 @@ def test_create_usd_invoice_shows_dollar_equivalent(page):
     # ~7-8); this guards against a parsing mistake (e.g. picking up the wrong
     # number) rather than pinning an exact value.
     assert 1 < rate_shown < 50
+
+
+def test_usd_rate_label_shown_before_submitting(page):
+    # TC-03 (plan de pruebas, Fase 2): the "current rate" label on the
+    # invoice form (added after the main USD feature, via GET
+    # /api/invoices/exchange-rate) must show the real Banguat rate BEFORE
+    # the invoice is even submitted -- this is a separate, narrower
+    # real-network round-trip from the one exercised above, so it gets its
+    # own test rather than being folded into the full invoice-creation flow.
+    test_name = "test_usd_rate_label_shown_before_submitting"
+    login(page, *VENDEDOR_USER)
+    page.goto(f"{BASE_URL}/invoices/new")
+
+    page.get_by_label("Moneda de pago").select_option(label="Dólares")
+
+    rate_label = page.get_by_text(re.compile(r"^Cambio actual según Banco de Guatemala, [\d.]+$"))
+    rate_label.wait_for()
+    save_evidence(page, test_name, "01_rate_label_shown")
+
+    match = re.search(r"Cambio actual según Banco de Guatemala, ([\d.]+)", rate_label.inner_text())
+    assert match, f"label did not contain a parseable rate: {rate_label.inner_text()!r}"
+    rate_shown = float(match.group(1))
+
+    # Same sanity bound as the full-flow test above: guards against a
+    # parsing mistake, not a specific rate value.
+    assert 1 < rate_shown < 50
+
+    # Switching back to Quetzales must remove the label entirely (it's
+    # conditionally rendered only when paymentCurrency === 'USD').
+    page.get_by_label("Moneda de pago").select_option(label="Quetzales")
+    rate_label.wait_for(state="detached")
