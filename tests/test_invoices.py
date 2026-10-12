@@ -212,3 +212,42 @@ def test_new_invoice_submit_disabled_until_item_added(page):
     page.get_by_role("button", name="Agregar").click()
     save_evidence(page, "test_new_invoice_submit_disabled_until_item_added", "02_item_added_enabled")
     assert submit_button.is_enabled()
+
+
+def test_invoice_history_search_with_no_matches_shows_empty_state(page):
+    # HI-02 (plan de pruebas, Fase 2): a search term that matches nothing
+    # must show the empty-state message, not an error or a blank crash.
+    # Create a real invoice first so the test proves FILTERING produced the
+    # empty state -- not just that the history was empty to begin with.
+    login(page, *ADMIN_USER)
+    page.goto(f"{BASE_URL}/products")
+    product_name = f"Producto Busqueda {uuid.uuid4().hex[:6]}"
+    sku = _unique_sku()
+    _create_product_via_ui(page, product_name, sku, 10, 10)
+
+    customer_name = f"Cliente Busqueda {uuid.uuid4().hex[:6]}"
+    page.goto(f"{BASE_URL}/invoices/new")
+    _create_invoice_via_ui(page, customer_name, product_name, 1)
+    page.get_by_role("button", name="Crear factura").click()
+    status = page.get_by_role("status")
+    status.get_by_text(re.compile("creada")).wait_for()
+
+    page.goto(f"{BASE_URL}/invoices")
+    search_box = page.get_by_placeholder("Buscar por factura, cliente, NIT, vendedor...")
+
+    # Sanity check: search for the real invoice first, proving it exists and
+    # that the search box itself works -- the history is sorted oldest-first
+    # and the dev DB already has many rows, so the new invoice would not be
+    # on page 1 without searching for it specifically.
+    search_box.fill(customer_name)
+    page.locator("tr", has_text=customer_name).wait_for()
+
+    no_match_term = f"no-existe-{uuid.uuid4().hex}"
+    search_box.fill(no_match_term)
+    page.locator("tr", has_text=customer_name).wait_for(state="detached")
+
+    empty_message = page.get_by_text("No hay facturas registradas.")
+    empty_message.wait_for()
+    save_evidence(page, "test_invoice_history_search_with_no_matches_shows_empty_state", "01_empty_state")
+    assert empty_message.is_visible()
+    assert page.locator("tbody tr").count() == 0
