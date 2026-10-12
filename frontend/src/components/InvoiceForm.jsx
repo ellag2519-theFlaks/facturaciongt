@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createInvoice, getExchangeRate } from '../services/invoices.api'
 import { formatCurrency } from '../utils/formatCurrency'
 import ErrorMessage from './ErrorMessage'
@@ -15,7 +15,11 @@ function InvoiceForm({ products, onInvoiceCreated }) {
   const [paymentCurrency, setPaymentCurrency] = useState('GTQ')
   const [cart, setCart] = useState([])
   const [selectedProductId, setSelectedProductId] = useState('')
-  const [addQuantity, setAddQuantity] = useState(1)
+  // Kept as the raw input string (not a clamped number) so the field can be
+  // emptied while the user is replacing it (e.g. clearing "1" to type "6")
+  // -- it's parsed/clamped to a valid integer in handleAddProduct and again
+  // on blur, not on every keystroke.
+  const [addQuantity, setAddQuantity] = useState('1')
   const [error, setError] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [createdInvoice, setCreatedInvoice] = useState(null)
@@ -83,7 +87,8 @@ function InvoiceForm({ products, onInvoiceCreated }) {
 
   function handleAddProduct(event) {
     event.preventDefault()
-    if (!selectedProductId || addQuantity <= 0 || !Number.isInteger(addQuantity)) {
+    const quantity = Math.trunc(Number(addQuantity))
+    if (!selectedProductId || !Number.isInteger(quantity) || quantity <= 0) {
       return
     }
 
@@ -94,21 +99,24 @@ function InvoiceForm({ products, onInvoiceCreated }) {
       if (existing) {
         return current.map((item) =>
           item.product_id === productId
-            ? { ...item, quantity: item.quantity + addQuantity }
+            ? { ...item, quantity: item.quantity + quantity }
             : item,
         )
       }
-      return [...current, { product_id: productId, quantity: addQuantity }]
+      return [...current, { product_id: productId, quantity }]
     })
     setSelectedProductId('')
-    setAddQuantity(1)
+    setAddQuantity('1')
   }
 
+  // InvoiceItemRow only calls this with an already-validated positive
+  // integer (it buffers raw keystrokes itself), so no re-clamping needed
+  // here -- that's what previously forced the field back to "1" before the
+  // user could ever clear it to type a different value.
   function handleQuantityChange(productId, quantity) {
-    const normalizedQuantity = Math.max(1, Math.trunc(quantity) || 1)
     setCart((current) =>
       current.map((item) =>
-        item.product_id === productId ? { ...item, quantity: normalizedQuantity } : item,
+        item.product_id === productId ? { ...item, quantity } : item,
       ),
     )
   }
@@ -116,6 +124,17 @@ function InvoiceForm({ products, onInvoiceCreated }) {
   function handleRemove(productId) {
     setCart((current) => current.filter((item) => item.product_id !== productId))
   }
+
+  const successBannerRef = useRef(null)
+  useEffect(() => {
+    // On mobile the success banner renders above the (long) form, which can
+    // stay scrolled down from filling it out -- without this the user has
+    // no visual confirmation the invoice was created unless they scroll up
+    // manually.
+    if (createdInvoice) {
+      successBannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [createdInvoice])
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -152,6 +171,7 @@ function InvoiceForm({ products, onInvoiceCreated }) {
     <div className="flex flex-col gap-6">
       {createdInvoice && (
         <div
+          ref={successBannerRef}
           role="status"
           className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800"
         >
@@ -249,8 +269,9 @@ function InvoiceForm({ products, onInvoiceCreated }) {
                 min="1"
                 step="1"
                 value={addQuantity}
-                onChange={(event) =>
-                  setAddQuantity(Math.max(1, Math.trunc(Number(event.target.value)) || 1))
+                onChange={(event) => setAddQuantity(event.target.value)}
+                onBlur={() =>
+                  setAddQuantity((current) => String(Math.max(1, Math.trunc(Number(current)) || 1)))
                 }
                 className="w-24 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
               />
@@ -271,28 +292,30 @@ function InvoiceForm({ products, onInvoiceCreated }) {
           {isCartEmpty ? (
             <p className="text-sm text-gray-500">No hay productos agregados.</p>
           ) : (
-            <table className="w-full table-auto border-collapse text-left text-sm">
-              <thead>
-                <tr className="border-b border-gray-200 text-gray-500">
-                  <th className="py-2 pr-4 font-medium">Producto</th>
-                  <th className="py-2 pr-4 font-medium">Precio</th>
-                  <th className="py-2 pr-4 font-medium">Cantidad</th>
-                  <th className="py-2 pr-4 font-medium">Subtotal</th>
-                  <th className="py-2 pr-4 font-medium">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cart.map((item) => (
-                  <InvoiceItemRow
-                    key={item.product_id}
-                    item={item}
-                    product={productsById.get(item.product_id)}
-                    onQuantityChange={handleQuantityChange}
-                    onRemove={handleRemove}
-                  />
-                ))}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full table-auto border-collapse text-left text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 text-gray-500">
+                    <th className="py-2 pr-4 font-medium">Producto</th>
+                    <th className="py-2 pr-4 font-medium">Precio</th>
+                    <th className="py-2 pr-4 font-medium">Cantidad</th>
+                    <th className="py-2 pr-4 font-medium">Subtotal</th>
+                    <th className="py-2 pr-4 font-medium">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cart.map((item) => (
+                    <InvoiceItemRow
+                      key={item.product_id}
+                      item={item}
+                      product={productsById.get(item.product_id)}
+                      onQuantityChange={handleQuantityChange}
+                      onRemove={handleRemove}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 

@@ -84,26 +84,28 @@ function InvoiceDetailPage() {
           </div>
 
           <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-            <table className="w-full table-auto border-collapse text-left text-sm">
-              <thead>
-                <tr className="border-b border-gray-200 text-gray-500">
-                  <th className="py-2 pr-4 font-medium">Producto</th>
-                  <th className="py-2 pr-4 font-medium">Cantidad</th>
-                  <th className="py-2 pr-4 font-medium">Precio unitario</th>
-                  <th className="py-2 pr-4 font-medium">Subtotal</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoice.items.map((item) => (
-                  <tr key={item.id} className="border-b border-gray-100">
-                    <td className="py-2 pr-4 text-gray-800">{item.product_name}</td>
-                    <td className="py-2 pr-4 text-gray-600">{item.quantity}</td>
-                    <td className="py-2 pr-4 text-gray-600">{formatCurrency(item.unit_price)}</td>
-                    <td className="py-2 pr-4 text-gray-800">{formatCurrency(item.line_total)}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full table-auto border-collapse text-left text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 text-gray-500">
+                    <th className="py-2 pr-4 font-medium">Producto</th>
+                    <th className="py-2 pr-4 font-medium">Cantidad</th>
+                    <th className="py-2 pr-4 font-medium">Precio unitario</th>
+                    <th className="py-2 pr-4 font-medium">Subtotal</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {invoice.items.map((item) => (
+                    <tr key={item.id} className="border-b border-gray-100">
+                      <td className="py-2 pr-4 text-gray-800">{item.product_name}</td>
+                      <td className="py-2 pr-4 text-gray-600">{item.quantity}</td>
+                      <td className="py-2 pr-4 text-gray-600">{formatCurrency(item.unit_price)}</td>
+                      <td className="py-2 pr-4 text-gray-800">{formatCurrency(item.line_total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
             <div className="mt-4 ml-auto w-48 space-y-1 text-sm">
               <div className="flex justify-between text-gray-600">

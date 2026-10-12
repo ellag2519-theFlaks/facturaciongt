@@ -25,7 +25,12 @@
 // 19 E2E), evidencia.pptx/report.html/videos archivados correctamente.
 // Build #5 (fallo controlado) y #6/#7 (corrección) también verificados en
 // Fase 7 del plan de pruebas. Build #9 verifica la etapa de npm audit
-// (con npm-audit.json archivado por servicio).
+// (con npm-audit.json archivado por servicio). Build #13 (fallo esperado:
+// el Navbar dejó de desbordar en móvil tras corregirlo, haciendo fallar
+// las 2 pruebas que documentaban ese hallazgo -- exactamente como su
+// propio mensaje de aserción anticipaba) y build #14 (82/82 tras invertir
+// esas 2 pruebas a regresión y agregar generate_dashboard.py a la etapa 8)
+// verifican el reporte navegable tests/reports/dashboard.html.
 pipeline {
     // customWorkspace apunta directo a la carpeta real del proyecto en vez
     // de que Jenkins clone el repo a su propio workspace -- el proyecto no
@@ -161,9 +166,18 @@ pipeline {
             }
         }
 
-        stage('8. Generar evidencia PPTX') {
+        stage('8. Generar evidencia PPTX y reporte de evidencias') {
             steps {
-                dir(env.TESTS_DIR) { bat 'py generate_report.py' }
+                dir(env.TESTS_DIR) {
+                    bat 'py generate_report.py'
+                    // dashboard.html: un único artefacto navegable que reúne
+                    // tipo de prueba, escenario, resultado y el video de cada
+                    // una, más el enlace de descarga del PPTX -- se abre
+                    // directo desde "Artefactos de la compilación" en vez de
+                    // tener que revisar report.html, tests/videos/ y el pptx
+                    // por separado.
+                    bat 'py generate_dashboard.py'
+                }
             }
         }
     }

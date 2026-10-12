@@ -26,6 +26,7 @@ import json
 from datetime import date
 from pathlib import Path
 
+from PIL import Image
 from pptx import Presentation
 from pptx.util import Inches, Pt, Emu
 from pptx.dml.color import RGBColor
@@ -58,12 +59,15 @@ COLOR_LIGHT_BG = RGBColor(0xF5, 0xF5, 0xF5)
 # Tests that document a KNOWN, DELIBERATELY UNFIXED gap rather than validate
 # a feature -- the test "passing" means the gap was confirmed to still
 # exist, not that something works correctly. A green "PASÓ" badge on these
-# would read backwards (plan de pruebas Fase 5, NF-COMP-01): the Navbar
-# really does overflow on mobile, and that's what these prove.
-FINDING_TESTS = {
-    "test_navbar_overflows_horizontally_on_mobile_viewport",
-    "test_navbar_overflow_is_consistent_across_protected_pages",
-}
+# would read backwards.
+#
+# NF-COMP-01's Navbar-overflow gap (the only entries this set ever held) was
+# fixed 2026-10-12 and its 2 tests were flipped into regression tests
+# (test_navbar_does_not_overflow_on_mobile_viewport /
+# test_navbar_no_overflow_is_consistent_across_protected_pages) -- they now
+# validate a feature like any other functional test, so this set is empty
+# until a future gap is deliberately left undocumented-as-fixed again.
+FINDING_TESTS = set()
 
 
 def _blank_slide(prs):
@@ -176,17 +180,16 @@ def build_result_slides(prs, result):
     run.font.size = Pt(16)
     run.font.italic = True
 
-    # Large, legible image area: 16:9 (matches the 1280x720 screenshots
-    # exactly), sized to the available slide space minus title/label room.
+    # Large, legible image area, sized to the available slide space minus
+    # title/label room. The box itself is landscape, but each screenshot is
+    # fit to ITS OWN real pixel aspect ratio inside it (see loop below) --
+    # not forced to 1280x720. The suite also records 375x812 portrait
+    # screenshots (mobile-viewport compatibility tests), and stretching
+    # those into a 16:9 box distorted them ~3.4x horizontally, unreadable
+    # for a manual QA reviewer.
     img_top = Inches(1.35)
     available_width = SLIDE_WIDTH - Inches(0.8)
     available_height = SLIDE_HEIGHT - img_top - Inches(0.3)
-    img_width = available_width
-    img_height = img_width * 720 / 1280
-    if img_height > available_height:
-        img_height = available_height
-        img_width = img_height * 1280 / 720
-    img_left = (SLIDE_WIDTH - img_width) / 2
 
     for shot in screenshots:
         slide = _blank_slide(prs)
@@ -202,9 +205,17 @@ def build_result_slides(prs, result):
 
         img_path = TESTS_DIR / shot
         if img_path.exists():
-            slide.shapes.add_picture(str(img_path), Emu(int(img_left)), img_top, width=Emu(int(img_width)), height=Emu(int(img_height)))
+            with Image.open(img_path) as im:
+                px_w, px_h = im.size
+            scale = min(available_width / px_w, available_height / px_h)
+            img_width = int(px_w * scale)
+            img_height = int(px_h * scale)
+            img_left = int((SLIDE_WIDTH - img_width) / 2)
+            img_slide_top = int(img_top + (available_height - img_height) / 2)
+            slide.shapes.add_picture(str(img_path), Emu(img_left), Emu(img_slide_top), width=Emu(img_width), height=Emu(img_height))
         else:
-            missing = slide.shapes.add_textbox(Emu(int(img_left)), img_top, Emu(int(img_width)), Emu(int(img_height)))
+            img_left = int((SLIDE_WIDTH - available_width) / 2)
+            missing = slide.shapes.add_textbox(Emu(img_left), img_top, Emu(int(available_width)), Emu(int(available_height)))
             run = missing.text_frame.paragraphs[0].add_run()
             run.text = f"(imagen no encontrada: {shot})"
             run.font.size = Pt(12)

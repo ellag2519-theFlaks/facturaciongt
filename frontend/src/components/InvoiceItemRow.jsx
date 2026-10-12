@@ -1,8 +1,37 @@
+import { useEffect, useState } from 'react'
 import { formatCurrency } from '../utils/formatCurrency'
 
 function InvoiceItemRow({ item, product, onQuantityChange, onRemove }) {
   const exceedsStock = item.quantity > (product?.stock ?? 0)
   const lineTotal = (product?.price ?? 0) * item.quantity
+
+  // Local text buffer, separate from item.quantity: lets the field go
+  // empty while the user is clearing it to type a new value (e.g. "1" ->
+  // "6") without onChange instantly clamping it back to 1 on every
+  // keystroke, which previously made it impossible to ever clear.
+  const [quantityText, setQuantityText] = useState(String(item.quantity))
+
+  useEffect(() => {
+    setQuantityText(String(item.quantity))
+  }, [item.quantity])
+
+  function handleChange(event) {
+    const raw = event.target.value
+    setQuantityText(raw)
+    const parsed = Math.trunc(Number(raw))
+    if (raw !== '' && Number.isInteger(parsed) && parsed > 0) {
+      onQuantityChange(item.product_id, parsed)
+    }
+  }
+
+  function handleBlur() {
+    const parsed = Math.trunc(Number(quantityText))
+    const normalized = Number.isInteger(parsed) && parsed > 0 ? parsed : 1
+    setQuantityText(String(normalized))
+    if (normalized !== item.quantity) {
+      onQuantityChange(item.product_id, normalized)
+    }
+  }
 
   return (
     <tr className="border-b border-gray-100">
@@ -13,8 +42,9 @@ function InvoiceItemRow({ item, product, onQuantityChange, onRemove }) {
           type="number"
           min="1"
           step="1"
-          value={item.quantity}
-          onChange={(event) => onQuantityChange(item.product_id, Number(event.target.value))}
+          value={quantityText}
+          onChange={handleChange}
+          onBlur={handleBlur}
           aria-invalid={exceedsStock}
           className={`w-20 rounded-md border px-2 py-1 text-sm focus:outline-none ${
             exceedsStock

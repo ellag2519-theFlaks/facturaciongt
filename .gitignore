@@ -1,6 +1,10 @@
 # SDD scratch workspace (ledgers, briefs, review packages)
 .superpowers/
 
+# Local Claude Code tooling config (dev-server launch config for the
+# in-app browser preview; machine-local, not part of the project itself)
+.claude/
+
 # Node
 node_modules/
 npm-debug.log*

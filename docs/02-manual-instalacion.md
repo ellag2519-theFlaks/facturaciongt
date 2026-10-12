@@ -186,9 +186,10 @@ si se sembraron usuarios con credenciales distintas a las de
 ```
 py -m pytest --video=on --slowmo=600 --junitxml=reports/e2e-junit.xml --html=reports/report.html -v
 py generate_report.py
+py generate_dashboard.py
 ```
 
-(equivalente en una sola línea: `py -m pytest --video=on --slowmo=600 --junitxml=reports/e2e-junit.xml --html=reports/report.html -v && py generate_report.py`)
+(equivalente en una sola línea: `py -m pytest --video=on --slowmo=600 --junitxml=reports/e2e-junit.xml --html=reports/report.html -v && py generate_report.py && py generate_dashboard.py`)
 
 `--slowmo=600` añade ~600ms de pausa entre cada acción de Playwright (clic,
 llenar campo, etc.) -- sin esto los videos corren demasiado rápido para que
@@ -207,10 +208,22 @@ Esto:
 2. Genera `tests/reports/report.html` (resultado pasa/falla + duración) y
    `tests/reports/results.json` (fuente de datos del paso siguiente).
 3. Genera `tests/reports/evidencia.pptx`: portada, una diapositiva por
-   escenario con sus capturas y resultado (con badge ámbar "HALLAZGO
-   CONFIRMADO" en vez de "PASÓ" para las 2 pruebas que documentan un gap
-   conocido, no una validación funcional), y diapositivas finales con el
-   código fuente de cada prueba.
+   escenario con sus capturas y resultado, y diapositivas finales con el
+   código fuente de cada prueba. Cada captura se ajusta a su propia
+   proporción real (no se fuerza a 16:9), así una captura de viewport móvil
+   (375x812, retrato) no sale estirada/deformada como ocurría antes. Si
+   alguna prueba documenta un hallazgo conocido y deliberadamente sin
+   corregir (no una validación funcional), su diapositiva muestra un badge
+   ámbar "HALLAZGO CONFIRMADO" en vez de "PASÓ" -- actualmente ninguna
+   prueba está en ese caso (el último hallazgo, el desbordamiento del
+   Navbar en móvil, se corrigió el 2026-10-12 y sus 2 pruebas pasaron a ser
+   de regresión normal).
+4. Genera `tests/reports/dashboard.html`: un único reporte navegable con el
+   tipo de cada prueba (unitaria/funcional/no funcional), el escenario, el
+   resultado, el video grabado de esa prueba, y un botón de descarga del
+   PPTX -- pensado para abrirse directo desde los "Artefactos de la
+   compilación" de Jenkins sin tener que revisar report.html, los videos y
+   el pptx por separado.
 
 > **`test_usd_payment_pruebas_funcionales.py` depende de internet real:** es
 > la única prueba de toda la suite que no es autocontenida — crea una
@@ -239,7 +252,7 @@ py -m pytest test_auth_pruebas_funcionales.py --video=on --html=reports/report.h
 | Nueva factura | Ir a `http://localhost:5173/invoices/new` (ambos roles) |
 | Nueva factura en dólares | En `/invoices/new`, elegir "Dólares" en **Moneda de pago** antes de crear la factura (requiere `exchange-service` arriba e internet) |
 | Historial | Ir a `http://localhost:5173/invoices` (ambos roles) |
-| Suite E2E | Ver `tests/reports/report.html` y `tests/reports/evidencia.pptx` tras correr el comando de la sección 6 |
+| Suite E2E | Ver `tests/reports/dashboard.html` (reporte principal), `tests/reports/report.html` y `tests/reports/evidencia.pptx` tras correr el comando de la sección 6 |
 
 ## 8. Problemas comunes
 

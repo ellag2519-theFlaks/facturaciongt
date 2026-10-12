@@ -119,15 +119,20 @@ end-to-end con Playwright controlando un navegador real:
   `_pruebas_no_funcionales_*`, `_pruebas_seguridad`), para que quede claro
   de un vistazo qué tipo de prueba solicitada cumple cada archivo.
 - Un solo comando corre toda la batería y genera automáticamente: un
-  reporte HTML con resultados, y una presentación PowerPoint con las
-  evidencias — una diapositiva grande y legible por captura (no varias
-  amontonadas), cada una con su paso etiquetado, badge PASÓ/FALLÓ (o
-  "HALLAZGO CONFIRMADO" en ámbar para las 2 pruebas que documentan un gap
-  conocido, no una validación funcional), y el código fuente de cada
-  prueba al final.
+  reporte HTML con resultados, un `dashboard.html` navegable (tipo de
+  prueba, escenario, resultado, video de cada una y botón de descarga del
+  PPTX — pensado para abrirse directo desde los artefactos de Jenkins), y
+  una presentación PowerPoint con las evidencias — una diapositiva grande y
+  legible por captura (no varias amontonadas, cada una ajustada a su propia
+  proporción real), cada una con su paso etiquetado, badge PASÓ/FALLÓ (o
+  "HALLAZGO CONFIRMADO" en ámbar si alguna prueba documentara un gap
+  conocido y deliberadamente sin corregir — actualmente ninguna lo hace: el
+  último hallazgo, el desbordamiento del Navbar en móvil, se corrigió el
+  2026-10-12), y el código fuente de cada prueba al final.
 - La app ahora también es accesible desde cualquier dispositivo en la
   misma red Wi-Fi (`http://<IP-de-esta-PC>:5173`), para probar
-  compatibilidad en un celular/tablet real, no solo emulado.
+  compatibilidad en un celular/tablet real, no solo emulado — confirmado
+  funcionando desde un teléfono real.
 
 ## 9. Demostración en vivo — guion paso a paso
 
