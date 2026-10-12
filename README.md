@@ -57,7 +57,7 @@ cd exchange-service && npm install && npm run dev                               
 cd facturacion-service && npm install && node src/database/seed.js && npm run dev   # API — http://localhost:3001 (GET /health)
 cd frontend && npm install && npm run dev                                           # UI  — http://localhost:5173
 cd tests && py -m pip install -r requirements.txt && py -m playwright install chromium
-cd tests && py -m pytest --video=on --html=reports/report.html -v && py generate_report.py
+cd tests && py -m pytest --video=on --slowmo=600 --junitxml=reports/e2e-junit.xml --html=reports/report.html -v && py generate_report.py && py generate_dashboard.py
 ```
 
 La demo en vivo y la suite E2E completa ahora requieren los **3 servidores**
@@ -127,11 +127,15 @@ pago de facturas en dólares con tasa de cambio real vía `exchange-service`.
 **Frontend completo:** login, catálogo de productos (admin), creación de
 facturas (con selector de moneda de pago), historial y detalle de factura
 acotados por rol, con el equivalente en dólares cuando aplica.
-**Pipeline de QA completo:** 5 archivos de pruebas E2E con Playwright (14
-pruebas: login, productos, facturación, límites de stock, y pago en USD),
-video por prueba, reporte HTML, y generación automática de una
-presentación PowerPoint con las evidencias. El escenario de pago en USD es
-el único de toda la suite que depende de internet real (consume el SOAP
-real del Banco de Guatemala a través de `exchange-service`).
+**Pipeline de QA completo:** backend con 78 pruebas (`node:test`) y 7
+archivos de pruebas E2E con Playwright (20 pruebas: login, productos,
+facturación, límites de stock, pago en USD, compatibilidad móvil y
+volumen), video por prueba, reporte HTML, un `dashboard.html` navegable
+(tipo/escenario/resultado/video de cada prueba + descarga del PPTX), y
+generación automática de una presentación PowerPoint con las evidencias.
+También hay un pipeline de Jenkins (`Jenkinsfile`) que corre todo esto
+automáticamente. El escenario de pago en USD es el único de toda la suite
+que depende de internet real (consume el SOAP real del Banco de Guatemala
+a través de `exchange-service`).
 **Documentación completa:** técnica, instalación, usuario, y guion de
 exposición — ver [`docs/`](docs/README.md).
