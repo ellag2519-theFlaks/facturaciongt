@@ -97,6 +97,38 @@ test('duplicate product_id lines are aggregated before validating stock, not che
   assert.equal(invoicesBefore, invoicesAfter)
 })
 
+test('FA-04: a valid line is not persisted when a DIFFERENT line in the same invoice fails stock', async () => {
+  const validProduct = createProduct({ name: 'Audífonos', sku: 'AUD-1', price: 30, stock: 10, category: null })
+  const shortProduct = createProduct({ name: 'Silla', sku: 'SIL-1', price: 500, stock: 2, category: null })
+  const invoicesBefore = db.prepare('SELECT COUNT(*) AS count FROM invoices').get().count
+  const itemsBefore = db.prepare('SELECT COUNT(*) AS count FROM invoice_items').get().count
+
+  // First line alone would succeed (qty 2 <= stock 10); second line alone
+  // would fail (qty 5 > stock 2). The whole request must be rejected, and
+  // the FIRST (valid) line must be left completely untouched too.
+  const res = await request(app).post('/api/invoices').set('Authorization', `Bearer ${vendedorToken}`)
+    .send({
+      customer_name: 'X',
+      items: [
+        { product_id: validProduct.id, quantity: 2 },
+        { product_id: shortProduct.id, quantity: 5 }
+      ]
+    })
+
+  assert.equal(res.status, 409)
+  assert.equal(res.body.error.code, 'INSUFFICIENT_STOCK')
+
+  const validAfter = db.prepare('SELECT stock FROM products WHERE id = ?').get(validProduct.id)
+  const shortAfter = db.prepare('SELECT stock FROM products WHERE id = ?').get(shortProduct.id)
+  assert.equal(validAfter.stock, 10, 'the valid line must NOT have decremented stock')
+  assert.equal(shortAfter.stock, 2)
+
+  const invoicesAfter = db.prepare('SELECT COUNT(*) AS count FROM invoices').get().count
+  const itemsAfter = db.prepare('SELECT COUNT(*) AS count FROM invoice_items').get().count
+  assert.equal(invoicesBefore, invoicesAfter, 'no invoice row must be inserted')
+  assert.equal(itemsBefore, itemsAfter, 'no invoice_items row must be inserted, not even for the valid line')
+})
+
 test('rounds subtotal/tax/total to 2 decimals for prices with cents', async () => {
   const centsProduct = createProduct({ name: 'Teclado', sku: 'TEC-1', price: 19.99, stock: 50, category: null })
 
