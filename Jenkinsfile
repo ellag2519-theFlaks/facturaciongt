@@ -23,6 +23,8 @@
 // contenido en la configuración del job en Jenkins -- no se sincroniza solo.
 // Verificado funcionando end-to-end: build #4, 82/82 pruebas (63 backend +
 // 19 E2E), evidencia.pptx/report.html/videos archivados correctamente.
+// Build #5 (fallo controlado) y #6/#7 (corrección) también verificados en
+// Fase 7 del plan de pruebas.
 pipeline {
     // customWorkspace apunta directo a la carpeta real del proyecto en vez
     // de que Jenkins clone el repo a su propio workspace -- el proyecto no
@@ -71,7 +73,31 @@ pipeline {
             }
         }
 
-        stage('3. Backend: pruebas unitarias e integración (node:test)') {
+        stage('3. Auditoría de seguridad de dependencias (npm audit)') {
+            // Reporta, no bloquea: igual que NF-SEG-01, un hallazgo de
+            // seguridad se documenta y se deja a decisión humana, no se
+            // falla el build automáticamente por él. "|| exit 0" fuerza el
+            // código de salida a 0 porque npm audit sale con código != 0
+            // en cuanto encuentra CUALQUIER vulnerabilidad -- sin esto, la
+            // etapa fallaría casi siempre y escondería el resto del pipeline
+            // detrás de un hallazgo que nadie pidió corregir todavía.
+            steps {
+                dir(env.FACTURACION_DIR) {
+                    bat 'npm audit || exit 0'
+                    bat 'npm audit --json > npm-audit.json || exit 0'
+                }
+                dir(env.EXCHANGE_DIR) {
+                    bat 'npm audit || exit 0'
+                    bat 'npm audit --json > npm-audit.json || exit 0'
+                }
+                dir(env.FRONTEND_DIR) {
+                    bat 'npm audit || exit 0'
+                    bat 'npm audit --json > npm-audit.json || exit 0'
+                }
+            }
+        }
+
+        stage('4. Backend: pruebas unitarias e integración (node:test)') {
             steps {
                 dir(env.FACTURACION_DIR) {
                     bat 'node --env-file=.env.test --test --test-concurrency=1 --test-reporter=junit --test-reporter-destination=backend-junit.xml "test/**/*.test.js"'
@@ -79,13 +105,13 @@ pipeline {
             }
         }
 
-        stage('4. Verificar build del frontend') {
+        stage('5. Verificar build del frontend') {
             steps {
                 dir(env.FRONTEND_DIR) { bat 'npm run build' }
             }
         }
 
-        stage('5. Levantar los 3 servidores para E2E') {
+        stage('6. Levantar los 3 servidores para E2E') {
             steps {
                 powershell '''
                     $root = (Get-Location).Path
@@ -115,7 +141,7 @@ pipeline {
             }
         }
 
-        stage('6. E2E: Playwright (Python)') {
+        stage('7. E2E: Playwright (Python)') {
             steps {
                 dir(env.TESTS_DIR) {
                     // --video=on para dejar evidencia en video de cada prueba
@@ -130,7 +156,7 @@ pipeline {
             }
         }
 
-        stage('7. Generar evidencia PPTX') {
+        stage('8. Generar evidencia PPTX') {
             steps {
                 dir(env.TESTS_DIR) { bat 'py generate_report.py' }
             }
@@ -154,7 +180,7 @@ pipeline {
 
             junit allowEmptyResults: true, testResults: 'facturacion-service/backend-junit.xml,tests/reports/e2e-junit.xml'
 
-            archiveArtifacts artifacts: 'tests/reports/**, tests/evidence/**, tests/videos/**', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'tests/reports/**, tests/evidence/**, tests/videos/**, facturacion-service/npm-audit.json, exchange-service/npm-audit.json, frontend/npm-audit.json', allowEmptyArchive: true
         }
     }
 }
