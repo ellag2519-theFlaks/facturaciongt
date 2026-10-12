@@ -30,7 +30,12 @@
 // las 2 pruebas que documentaban ese hallazgo -- exactamente como su
 // propio mensaje de aserción anticipaba) y build #14 (82/82 tras invertir
 // esas 2 pruebas a regresión y agregar generate_dashboard.py a la etapa 8)
-// verifican el reporte navegable tests/reports/dashboard.html.
+// verifican el reporte navegable tests/reports/dashboard.html. Build #20
+// verifica las 16 pruebas de borde agregadas al auditar la suite contra
+// las reglas de validación reales (productService/invoiceService/
+// authService) -- 98/98 (78 backend + 20 E2E), incluyendo el fix de un
+// 500 real en login (bcrypt.compareSync con password undefined) y la
+// prueba E2E de "eliminar producto facturado" que faltaba automatizar.
 pipeline {
     // customWorkspace apunta directo a la carpeta real del proyecto en vez
     // de que Jenkins clone el repo a su propio workspace -- el proyecto no
