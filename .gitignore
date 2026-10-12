@@ -25,3 +25,9 @@ tests/.venv/
 tests/evidence/
 tests/videos/
 tests/reports/
+
+# CI run artifacts from the Jenkins pipeline (regenerated every build)
+facturacion-service/backend-junit.xml
+facturacion-service/npm-audit.json
+exchange-service/npm-audit.json
+frontend/npm-audit.json

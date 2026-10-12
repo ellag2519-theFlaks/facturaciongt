@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "axios": "^1.20.0",
-    "bcrypt": "^5",
+    "bcrypt": "^6.0.0",
     "better-sqlite3": "^13.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16",
@@ -23,7 +23,7 @@
     "supertest": "^6.3.3"
   },
   "allowScripts": {
-    "bcrypt@5.1.1": true,
+    "bcrypt@6.0.0": true,
     "better-sqlite3@13.0.3": true
   }
 }
