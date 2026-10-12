@@ -1,4 +1,4 @@
-# tests/test_volume.py
+# tests/test_volume_pruebas_no_funcionales.py
 """NF-VOL-01 (plan de pruebas, Fase 2): prueba de volumen sobre el
 historial de facturas.
 

@@ -97,25 +97,37 @@ error reutilizable.
 Además del software, el proyecto entrega un pipeline de pruebas
 end-to-end con Playwright controlando un navegador real:
 
-- 7 archivos de prueba, 19 escenarios en total (`test_auth.py`,
-  `test_products.py`, `test_invoices.py`, `test_stock_limits.py`,
-  `test_usd_payment.py`, `test_compatibility.py`, `test_volume.py`), cada
+- 7 archivos de prueba, 19 escenarios en total (`test_auth_pruebas_funcionales.py`,
+  `test_products_pruebas_funcionales.py`, `test_invoices_pruebas_funcionales.py`, `test_stock_limits_pruebas_funcionales.py`,
+  `test_usd_payment_pruebas_funcionales.py`, `test_compatibility_pruebas_no_funcionales.py`, `test_volume_pruebas_no_funcionales.py`), cada
   uno cubriendo un flujo de negocio completo, no clics sueltos.
-- `test_usd_payment.py` es el único de los 7 archivos con una dependencia
+- `test_usd_payment_pruebas_funcionales.py` es el único de los 7 archivos con una dependencia
   real de internet: crea una factura en dólares, lo que hace que el
   backend llame al `exchange-service` real, y este a su vez al Banco de
   Guatemala real — las demás pruebas son 100% offline.
-- `test_compatibility.py` documenta un hallazgo real (no corregido a
+- `test_compatibility_pruebas_no_funcionales.py` documenta un hallazgo real (no corregido a
   propósito): el Navbar se desborda horizontalmente en un viewport móvil
-  de 375px. `test_volume.py` siembra 110 facturas sintéticas vía API para
+  de 375px. `test_volume_pruebas_no_funcionales.py` siembra 110 facturas sintéticas vía API para
   probar el historial bajo volumen, sin depender de datos acumulados por
   casualidad.
-- Cada prueba grabada en video y con capturas de pantalla en sus pasos
-  clave.
+- Cada prueba grabada en video (con `--slowmo=600`, una pausa deliberada
+  entre cada clic/campo para que un QA manual pueda seguir los pasos sin
+  perderse) y con capturas de pantalla en sus pasos clave.
+- Los nombres de archivo llevan el tipo de prueba que cumplen
+  (`_pruebas_funcionales`, `_pruebas_no_funcionales`) — igual en el
+  backend (`_pruebas_integracion`, `_pruebas_unitarias`,
+  `_pruebas_no_funcionales_*`, `_pruebas_seguridad`), para que quede claro
+  de un vistazo qué tipo de prueba solicitada cumple cada archivo.
 - Un solo comando corre toda la batería y genera automáticamente: un
   reporte HTML con resultados, y una presentación PowerPoint con las
-  evidencias (capturas + resultado PASO/FALLO de cada escenario, y el
-  código fuente de cada prueba al final).
+  evidencias — una diapositiva grande y legible por captura (no varias
+  amontonadas), cada una con su paso etiquetado, badge PASÓ/FALLÓ (o
+  "HALLAZGO CONFIRMADO" en ámbar para las 2 pruebas que documentan un gap
+  conocido, no una validación funcional), y el código fuente de cada
+  prueba al final.
+- La app ahora también es accesible desde cualquier dispositivo en la
+  misma red Wi-Fi (`http://<IP-de-esta-PC>:5173`), para probar
+  compatibilidad en un celular/tablet real, no solo emulado.
 
 ## 9. Demostración en vivo — guion paso a paso
 

@@ -1,4 +1,4 @@
-# tests/test_products.py
+# tests/test_products_pruebas_funcionales.py
 """E2E tests for the admin Products page: create, edit, delete, the
 DUPLICATE_SKU (409) inline error, and the admin-only route guard.
 

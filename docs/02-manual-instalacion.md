@@ -184,36 +184,47 @@ si se sembraron usuarios con credenciales distintas a las de
 ### Comando único: correr toda la suite y generar el reporte
 
 ```
-py -m pytest --video=on --html=reports/report.html -v
+py -m pytest --video=on --slowmo=600 --junitxml=reports/e2e-junit.xml --html=reports/report.html -v
 py generate_report.py
 ```
 
-(equivalente en una sola línea: `py -m pytest --video=on --html=reports/report.html -v && py generate_report.py`)
+(equivalente en una sola línea: `py -m pytest --video=on --slowmo=600 --junitxml=reports/e2e-junit.xml --html=reports/report.html -v && py generate_report.py`)
+
+`--slowmo=600` añade ~600ms de pausa entre cada acción de Playwright (clic,
+llenar campo, etc.) -- sin esto los videos corren demasiado rápido para que
+un QA manual pueda seguir los pasos. Omítelo si solo quieres una corrida
+rápida durante desarrollo, sin generar evidencia para revisión humana.
 
 Esto:
 
-1. Corre las 5 baterías de pruebas (`test_auth.py`, `test_products.py`,
-   `test_invoices.py`, `test_stock_limits.py`, `test_usd_payment.py`; 14
-   pruebas en total) contra la app real, grabando un video por prueba en
-   `tests/videos/` y screenshots por escenario en `tests/evidence/`.
+1. Corre los 7 archivos de prueba (nombrados según el tipo de prueba que
+   cumplen: `test_auth_pruebas_funcionales.py`, `test_products_pruebas_funcionales.py`,
+   `test_invoices_pruebas_funcionales.py`, `test_stock_limits_pruebas_funcionales.py`,
+   `test_usd_payment_pruebas_funcionales.py`, `test_compatibility_pruebas_no_funcionales.py`,
+   `test_volume_pruebas_no_funcionales.py`; 19 pruebas en total) contra la
+   app real, grabando un video por prueba en `tests/videos/` y screenshots
+   por escenario en `tests/evidence/`.
 2. Genera `tests/reports/report.html` (resultado pasa/falla + duración) y
    `tests/reports/results.json` (fuente de datos del paso siguiente).
 3. Genera `tests/reports/evidencia.pptx`: portada, una diapositiva por
-   escenario con sus capturas y resultado, y diapositivas finales con el
+   escenario con sus capturas y resultado (con badge ámbar "HALLAZGO
+   CONFIRMADO" en vez de "PASÓ" para las 2 pruebas que documentan un gap
+   conocido, no una validación funcional), y diapositivas finales con el
    código fuente de cada prueba.
 
-> **`test_usd_payment.py` depende de internet real:** es la única prueba
-> de toda la suite que no es autocontenida — crea una factura en dólares,
-> lo que hace que `facturacion-service` llame al `exchange-service` real,
-> y este a su vez al SOAP real del Banco de Guatemala. Sin internet (o si
-> `banguat.gob.gt` está caído), esta prueba falla por una razón ambiental,
-> no por un defecto de código. Las otras 13 pruebas son 100% offline.
+> **`test_usd_payment_pruebas_funcionales.py` depende de internet real:** es
+> la única prueba de toda la suite que no es autocontenida — crea una
+> factura en dólares, lo que hace que `facturacion-service` llame al
+> `exchange-service` real, y este a su vez al SOAP real del Banco de
+> Guatemala. Sin internet (o si `banguat.gob.gt` está caído), esta prueba
+> falla por una razón ambiental, no por un defecto de código. Las otras 18
+> pruebas son 100% offline.
 
 Para correr un solo archivo de pruebas durante desarrollo (más rápido que
 la suite completa):
 
 ```
-py -m pytest test_auth.py --video=on --html=reports/report.html -v
+py -m pytest test_auth_pruebas_funcionales.py --video=on --html=reports/report.html -v
 ```
 
 ## 7. Verificación de funcionamiento
@@ -241,6 +252,6 @@ py -m pytest test_auth.py --video=on --html=reports/report.html -v
 | Crear factura en dólares falla con "No se pudo obtener la tasa de cambio actual" (`EXCHANGE_SERVICE_UNAVAILABLE`) | `exchange-service` no está corriendo, o no hay internet para llegar a `banguat.gob.gt` | Verificar `curl http://localhost:3002/health`; si responde pero sigue fallando, revisar la conexión a internet. Como alternativa, facturar en Quetzales |
 | Las pruebas Playwright fallan al abrir el navegador | No se instaló el binario de Chromium | `py -m playwright install chromium` |
 | Las pruebas fallan por timeout esperando el login | El frontend o el backend no están corriendo antes de lanzar `pytest` | Levantar los 3 servicios (pasos 3, 4 y 5) antes de correr la suite |
-| Solo `test_usd_payment.py` falla, el resto pasa | Sin internet, o `banguat.gob.gt` inalcanzable/caído en este momento | Es la única prueba con dependencia de red real (ver sección 6); reintentar con internet disponible |
+| Solo `test_usd_payment_pruebas_funcionales.py` falla, el resto pasa | Sin internet, o `banguat.gob.gt` inalcanzable/caído en este momento | Es la única prueba con dependencia de red real (ver sección 6); reintentar con internet disponible |
 | `python`/`pip` no reconocidos en Windows | Este entorno usa el lanzador `py`, no `python`/`pip` sueltos | Usar `py -m pip install ...` y `py -m pytest ...` / `py generate_report.py` |
 | `results.json`/evidencias de una corrida vieja aparecen mezcladas | No aplica: `conftest.py` reescribe `results.json` desde cero en cada invocación de `pytest` | — |

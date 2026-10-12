@@ -1,4 +1,4 @@
-# tests/test_usd_payment.py
+# tests/test_usd_payment_pruebas_funcionales.py
 """E2E test for creating an invoice with USD ('Dólares') as the payment
 currency.
 

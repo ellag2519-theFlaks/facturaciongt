@@ -37,13 +37,13 @@ RESULTS_FILE = REPORTS_DIR / "results.json"
 OUTPUT_FILE = REPORTS_DIR / "evidencia.pptx"
 
 CODE_FILES = [
-    "test_auth.py",
-    "test_products.py",
-    "test_invoices.py",
-    "test_stock_limits.py",
-    "test_usd_payment.py",
-    "test_compatibility.py",
-    "test_volume.py",
+    "test_auth_pruebas_funcionales.py",
+    "test_products_pruebas_funcionales.py",
+    "test_invoices_pruebas_funcionales.py",
+    "test_stock_limits_pruebas_funcionales.py",
+    "test_usd_payment_pruebas_funcionales.py",
+    "test_compatibility_pruebas_no_funcionales.py",
+    "test_volume_pruebas_no_funcionales.py",
 ]
 
 SLIDE_WIDTH = Inches(13.333)

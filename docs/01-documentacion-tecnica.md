@@ -487,7 +487,7 @@ decremento vía `PATCH`.
   `http://localhost:5173`, backend en `http://localhost:3001`. Los 3
   servicios (`exchange-service`, `facturacion-service`, `frontend`) deben
   estar corriendo antes de ejecutar la suite completa.
-- **`test_usd_payment.py` es la única prueba de todo el proyecto con
+- **`test_usd_payment_pruebas_funcionales.py` es la única prueba de todo el proyecto con
   dependencia de red real:** crea una factura en dólares, lo que hace que
   `facturacion-service` llame al `exchange-service` real, y este a su vez
   al SOAP real del Banco de Guatemala — nada se simula ahí. Como la tasa
@@ -520,11 +520,11 @@ decremento vía `PATCH`.
 
 | Archivo | Pruebas |
 |---|---|
-| `test_auth.py` | `test_admin_login_success`, `test_vendedor_login_success`, `test_invalid_credentials_rejected` |
-| `test_products.py` | `test_admin_create_product`, `test_admin_edit_product_price`, `test_admin_delete_product`, `test_admin_duplicate_sku_shows_inline_error`, `test_vendedor_redirected_from_products` |
-| `test_invoices.py` | `test_vendedor_creates_invoice_totals_and_stock_deduct`, `test_invoice_history_scoped_by_role`, `test_new_invoice_submit_disabled_until_item_added` |
-| `test_stock_limits.py` | `test_adding_quantity_over_stock_disables_submit`, `test_backend_rejects_insufficient_stock_and_leaves_stock_unchanged` |
-| `test_usd_payment.py` | `test_create_usd_invoice_shows_dollar_equivalent` (única prueba con dependencia de red real — ver arriba) |
+| `test_auth_pruebas_funcionales.py` | `test_admin_login_success`, `test_vendedor_login_success`, `test_invalid_credentials_rejected` |
+| `test_products_pruebas_funcionales.py` | `test_admin_create_product`, `test_admin_edit_product_price`, `test_admin_delete_product`, `test_admin_duplicate_sku_shows_inline_error`, `test_vendedor_redirected_from_products` |
+| `test_invoices_pruebas_funcionales.py` | `test_vendedor_creates_invoice_totals_and_stock_deduct`, `test_invoice_history_scoped_by_role`, `test_new_invoice_submit_disabled_until_item_added` |
+| `test_stock_limits_pruebas_funcionales.py` | `test_adding_quantity_over_stock_disables_submit`, `test_backend_rejects_insufficient_stock_and_leaves_stock_unchanged` |
+| `test_usd_payment_pruebas_funcionales.py` | `test_create_usd_invoice_shows_dollar_equivalent` (única prueba con dependencia de red real — ver arriba) |
 
 Cada archivo cubre un flujo de negocio completo (login → acción →
 resultado esperado), no clics sueltos aislados, para que el video y las

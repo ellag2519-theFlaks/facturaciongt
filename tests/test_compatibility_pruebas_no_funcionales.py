@@ -1,4 +1,4 @@
-# tests/test_compatibility.py
+# tests/test_compatibility_pruebas_no_funcionales.py
 """NF-COMP-01 (plan de pruebas, Fase 2): compatibilidad responsive en un
 viewport móvil emulado (375x812, equivalente a un iPhone SE/8).
 

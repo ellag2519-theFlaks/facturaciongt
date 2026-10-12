@@ -1,4 +1,4 @@
-# tests/test_stock_limits.py
+# tests/test_stock_limits_pruebas_funcionales.py
 """E2E tests for the stock-limit guard on invoice creation: the client-side
 disabled-submit guard (Task 13), and a server-side INSUFFICIENT_STOCK check
 that survives an attempt to bypass that guard.

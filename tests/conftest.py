@@ -18,7 +18,8 @@ RESULTS_FILE = REPORTS_DIR / "results.json"
 
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:5173")
 
-# facturacion-service's own origin, used only by test_volume.py to seed
+# facturacion-service's own origin, used only by
+# test_volume_pruebas_no_funcionales.py to seed
 # data directly via API calls (clicking through the UI 100+ times would be
 # impractically slow).
 API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:3001/api")
@@ -89,7 +90,8 @@ def pytest_runtest_makereport(item, call):
         REPORTS_DIR.mkdir(parents=True, exist_ok=True)
         # pytest-playwright parametrizes every test on browser_name, so
         # item.name is e.g. "test_admin_login_success[chromium]" while
-        # test_auth.py calls save_evidence() with the bare function name.
+        # test_auth_pruebas_funcionales.py calls save_evidence() with the
+        # bare function name.
         # item.originalname is pytest's own bare name (falls back to
         # item.name when a test isn't parametrized), so it's what actually
         # matches the test_name string passed to save_evidence().

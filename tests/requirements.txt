@@ -4,8 +4,11 @@
 #   py -m pip install -r requirements.txt
 #   py -m playwright install chromium
 #
-# Run the suite with video recording on (used by generate_report.py, Task 16):
-#   py -m pytest test_auth.py --video=on --html=reports/report.html -v
+# Run the suite with video recording on (used by generate_report.py, Task 16).
+# --slowmo=600 adds a ~600ms pause between each Playwright action (click,
+# fill, etc.) so a human reviewing the recorded video can actually follow
+# each step -- without it, the videos run too fast to watch manually:
+#   py -m pytest --video=on --slowmo=600 --junitxml=reports/e2e-junit.xml --html=reports/report.html -v
 
 playwright
 pytest-playwright

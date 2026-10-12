@@ -146,13 +146,17 @@ pipeline {
             steps {
                 dir(env.TESTS_DIR) {
                     // --video=on para dejar evidencia en video de cada prueba
-                    // (ver pytest.ini). test_usd_payment.py depende de
-                    // internet real (Banco de Guatemala) -- si ese servicio
-                    // externo falla, esa prueba puede fallar por una razón
-                    // ambiental, no por un defecto del proyecto; el build se
-                    // marca inestable pero el resto de resultados se publica
-                    // igual (ver bloque post).
-                    bat 'py -m pytest --video=on --junitxml=reports/e2e-junit.xml --html=reports/report.html -v'
+                    // (ver pytest.ini). --slowmo=600 añade ~600ms de pausa
+                    // entre cada acción de Playwright (clic, llenar campo,
+                    // etc.) -- sin esto los videos corren tan rápido que un
+                    // QA manual no alcanza a seguir los pasos; verificado
+                    // visualmente antes de aplicarlo aquí. test_usd_payment_pruebas_funcionales.py
+                    // depende de internet real (Banco de Guatemala) -- si ese
+                    // servicio externo falla, esa prueba puede fallar por una
+                    // razón ambiental, no por un defecto del proyecto; el
+                    // build se marca inestable pero el resto de resultados se
+                    // publica igual (ver bloque post).
+                    bat 'py -m pytest --video=on --slowmo=600 --junitxml=reports/e2e-junit.xml --html=reports/report.html -v'
                 }
             }
         }

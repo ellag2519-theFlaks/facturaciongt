@@ -1,4 +1,4 @@
-# tests/test_auth.py
+# tests/test_auth_pruebas_funcionales.py
 from conftest import login, save_evidence, ADMIN_USER, VENDEDOR_USER, BASE_URL
 
 def test_admin_login_success(page):

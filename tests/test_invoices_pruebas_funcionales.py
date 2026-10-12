@@ -1,4 +1,4 @@
-# tests/test_invoices.py
+# tests/test_invoices_pruebas_funcionales.py
 """E2E tests for invoice creation, IVA/total math, stock deduction, and the
 role-scoped invoice history (vendedor sees only their own; admin sees all).
 
