@@ -19,7 +19,7 @@ function nextInvoiceNumber() {
  * @param {Array<{price: number}>} products
  * @returns {{subtotal: number, tax: number, total: number}}
  */
-function computeTotals(items, products) {
+export function computeTotals(items, products) {
   const subtotal = items.reduce((sum, item, i) => sum + item.quantity * products[i].price, 0)
   const tax = subtotal * 0.12
   const total = subtotal + tax
