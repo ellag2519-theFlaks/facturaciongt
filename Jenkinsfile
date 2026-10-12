@@ -13,6 +13,16 @@
 // HTTP). Correrlas como una sola etapa es la representación honesta de cómo
 // está organizada hoy la suite, en vez de inventar una separación que no
 // existe en el código.
+//
+// IMPORTANTE: el job "FacturacionGT-Pipeline" en Jenkins usa la definición
+// "Pipeline script" (pegado directo), NO "Pipeline script from SCM" -- el
+// plugin Git de Jenkins rechaza por seguridad los checkouts sobre rutas
+// locales del sistema de archivos, y en vez de debilitar esa protección se
+// optó por customWorkspace (ver abajo) apuntando directo a este proyecto.
+// Esto significa que, si este archivo cambia, hay que volver a pegar su
+// contenido en la configuración del job en Jenkins -- no se sincroniza solo.
+// Verificado funcionando end-to-end: build #4, 82/82 pruebas (63 backend +
+// 19 E2E), evidencia.pptx/report.html/videos archivados correctamente.
 pipeline {
     // customWorkspace apunta directo a la carpeta real del proyecto en vez
     // de que Jenkins clone el repo a su propio workspace -- el proyecto no
