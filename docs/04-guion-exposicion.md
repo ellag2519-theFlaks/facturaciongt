@@ -1,4 +1,4 @@
-# Guion de Exposición — Sistema de Facturación e Inventario
+# Guion de Exposición — FacturaciónGT
 
 ## 1. El problema que resuelve el sistema
 
@@ -97,13 +97,19 @@ error reutilizable.
 Además del software, el proyecto entrega un pipeline de pruebas
 end-to-end con Playwright controlando un navegador real:
 
-- 5 archivos de prueba (`test_auth.py`, `test_products.py`,
-  `test_invoices.py`, `test_stock_limits.py`, `test_usd_payment.py`), cada
+- 7 archivos de prueba, 19 escenarios en total (`test_auth.py`,
+  `test_products.py`, `test_invoices.py`, `test_stock_limits.py`,
+  `test_usd_payment.py`, `test_compatibility.py`, `test_volume.py`), cada
   uno cubriendo un flujo de negocio completo, no clics sueltos.
-- `test_usd_payment.py` es el único de los 5 archivos con una dependencia
+- `test_usd_payment.py` es el único de los 7 archivos con una dependencia
   real de internet: crea una factura en dólares, lo que hace que el
   backend llame al `exchange-service` real, y este a su vez al Banco de
   Guatemala real — las demás pruebas son 100% offline.
+- `test_compatibility.py` documenta un hallazgo real (no corregido a
+  propósito): el Navbar se desborda horizontalmente en un viewport móvil
+  de 375px. `test_volume.py` siembra 110 facturas sintéticas vía API para
+  probar el historial bajo volumen, sin depender de datos acumulados por
+  casualidad.
 - Cada prueba grabada en video y con capturas de pantalla en sus pasos
   clave.
 - Un solo comando corre toda la batería y genera automáticamente: un
@@ -148,3 +154,49 @@ end-to-end con Playwright controlando un navegador real:
 12. Cerrar la demo mostrando `tests/reports/report.html` (resultado de la
     suite completa) y una diapositiva de `tests/reports/evidencia.pptx`
     con la evidencia del mismo flujo que se acaba de demostrar en vivo.
+
+## 10. Automatización con Jenkins — guion paso a paso
+
+El proyecto tiene instalado Jenkins LTS localmente (`http://localhost:8081`),
+con un pipeline (`Jenkinsfile`, 7 etapas) que corre toda la batería de
+pruebas — 63 pruebas de backend (`node:test`) y 19 E2E (Playwright) — y
+publica los resultados individuales en Jenkins vía el plugin JUnit, además
+de archivar videos, capturas, el reporte HTML y la presentación PPTX.
+
+**Nota técnica para quien lo demuestre:** el pipeline corre directamente
+sobre la carpeta real del proyecto (`customWorkspace`), no sobre una copia
+clonada — el plugin Git de Jenkins bloquea por seguridad los checkouts
+desde rutas locales del sistema de archivos, y se optó por esto en vez de
+debilitar esa protección.
+
+1. Abrir `http://localhost:8081` y mostrar el panel principal de Jenkins,
+   con el job `FacturacionGT-Pipeline` y su historial de builds.
+2. Entrar al job y mostrar el `Jenkinsfile` (pestaña "Pipeline" en la
+   configuración) — explicar brevemente las 7 etapas.
+3. Clic en **"Construir ahora"** — mostrar la ejecución en tiempo real
+   (Console Output), señalando cómo cada etapa aparece en el "Pipeline
+   Overview".
+4. Cuando termine (✅ verde, "Finished: SUCCESS"), abrir **"Resultado de
+   los tests"**: mostrar "82 — All tests are passing!", con el desglose
+   por paquete.
+5. Abrir **"Artefactos Generados"**: mostrar `evidencia.pptx`,
+   `report.html`, la carpeta `videos/` y `evidence/` — los mismos
+   archivos que ya se mostraron en la Sección 9, ahora generados y
+   guardados automáticamente por Jenkins, no a mano.
+6. **Simulación de fallo controlado:** editar `computeTotals.test.js`
+   (un solo valor esperado, p. ej. cambiar `75` por `999` en la primera
+   prueba) y guardar — aclarar en voz alta que es un cambio deliberado y
+   reversible, solo en el código de la prueba, no en datos reales.
+7. Clic en **"Construir ahora"** de nuevo — dejar que falle (etapa 3,
+   backend, falla en segundos; las etapas 4-7 se saltan automáticamente
+   con el mensaje "skipped due to earlier failure(s)").
+8. Mostrar el build en rojo ("Finished: FAILURE") y entrar a **"Resultado
+   de los tests"**: Jenkins marca la prueba específica como fallida y la
+   etiqueta **"Regresión"** (porque pasaba en el build anterior).
+9. Revertir el cambio en `computeTotals.test.js` (volver `999` a `75`) y
+   guardar.
+10. Clic en **"Construir ahora"** una última vez — mostrar que vuelve a
+    quedar en verde, con las 82 pruebas pasando de nuevo.
+11. Cerrar mostrando el historial de builds del job (columna izquierda),
+    señalando la secuencia visible: éxito → fallo → éxito — evidencia de
+    que Jenkins detecta, reporta, y permite corregir sin ambigüedad.
