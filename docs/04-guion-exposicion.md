@@ -218,9 +218,11 @@ debilitar esa protección.
    enlace al PPTX), `evidencia.pptx`, `report.html`, la carpeta `videos/`
    y `evidence/` — los mismos archivos que ya se mostraron en la Sección
    9, ahora generados y guardados automáticamente por Jenkins, no a mano.
-6. **Simulación de fallo controlado:** editar `computeTotals.test.js`
-   (un solo valor esperado, p. ej. cambiar `75` por `999` en la primera
-   prueba) y guardar — aclarar en voz alta que es un cambio deliberado y
+6. **Simulación de fallo controlado:** editar
+   `facturacion-service/test/computeTotals.pruebas_unitarias.test.js`
+   (un solo valor esperado, p. ej. cambiar `75` por `999` en el
+   `assert.deepEqual` de la primera prueba, `'computeTotals: un solo
+   item'`) y guardar — aclarar en voz alta que es un cambio deliberado y
    reversible, solo en el código de la prueba, no en datos reales.
 7. Clic en **"Construir ahora"** de nuevo — dejar que falle (etapa 4,
    backend, falla en segundos; las etapas 5-8 se saltan automáticamente
@@ -228,8 +230,8 @@ debilitar esa protección.
 8. Mostrar el build en rojo ("Finished: FAILURE") y entrar a **"Resultado
    de los tests"**: Jenkins marca la prueba específica como fallida y la
    etiqueta **"Regresión"** (porque pasaba en el build anterior).
-9. Revertir el cambio en `computeTotals.test.js` (volver `999` a `75`) y
-   guardar.
+9. Revertir el cambio en `computeTotals.pruebas_unitarias.test.js` (volver
+   `999` a `75`) y guardar.
 10. Clic en **"Construir ahora"** una última vez — mostrar que vuelve a
     quedar en verde, con las 98 pruebas pasando de nuevo.
 11. Cerrar mostrando el historial de builds del job (columna izquierda),
