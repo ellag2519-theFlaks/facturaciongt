@@ -12,7 +12,7 @@ def _unique_sku():
     return f"SKU-{uuid.uuid4().hex[:8]}"
 
 
-def _create_product_via_ui(page, name, sku, price, stock, category=""):
+def _create_product_via_ui(page, name, sku, price, stock, category="General"):
     page.get_by_role("button", name="Nuevo producto").click()
     page.get_by_label("Nombre").fill(name)
     page.get_by_label("SKU").fill(sku)

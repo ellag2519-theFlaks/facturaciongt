@@ -10,7 +10,7 @@ save_evidence() during the run), and writes tests/reports/evidencia.pptx:
      written, i.e. the order pytest ran them), showing every screenshot
      recorded for that test plus a colored PASO/FALLO label driven by the
      real "outcome" field from the JSON -- never hardcoded.
-  3. Closing "validated code" slides: for each of the 4 real E2E test files,
+  3. Closing "validated code" slides: for each of the 7 real E2E test files,
      one slide per top-level `def test_...` function, titled with the
      function name and containing its exact source text (via
      ast.get_source_segment) in a monospace textbox.
@@ -41,6 +41,9 @@ CODE_FILES = [
     "test_products.py",
     "test_invoices.py",
     "test_stock_limits.py",
+    "test_usd_payment.py",
+    "test_compatibility.py",
+    "test_volume.py",
 ]
 
 SLIDE_WIDTH = Inches(13.333)
@@ -48,8 +51,19 @@ SLIDE_HEIGHT = Inches(7.5)
 
 COLOR_PASS = RGBColor(0x1E, 0x8E, 0x3E)   # green
 COLOR_FAIL = RGBColor(0xC5, 0x22, 0x1F)   # red
+COLOR_FINDING = RGBColor(0xB8, 0x6E, 0x00)  # amber -- neither "good" nor "bad"
 COLOR_DARK = RGBColor(0x20, 0x20, 0x20)
 COLOR_LIGHT_BG = RGBColor(0xF5, 0xF5, 0xF5)
+
+# Tests that document a KNOWN, DELIBERATELY UNFIXED gap rather than validate
+# a feature -- the test "passing" means the gap was confirmed to still
+# exist, not that something works correctly. A green "PASÓ" badge on these
+# would read backwards (plan de pruebas Fase 5, NF-COMP-01): the Navbar
+# really does overflow on mobile, and that's what these prove.
+FINDING_TESTS = {
+    "test_navbar_overflows_horizontally_on_mobile_viewport",
+    "test_navbar_overflow_is_consistent_across_protected_pages",
+}
 
 
 def _blank_slide(prs):
@@ -90,73 +104,111 @@ def build_title_slide(prs):
     run.font.color.rgb = COLOR_DARK
 
 
-def build_result_slide(prs, result):
-    """One slide per entry in results.json.
+def _add_outcome_badge(slide, is_pass, test_name):
+    """Top-right badge. For a normal test, PASO/FALLO colored strictly by
+    the real outcome -- never hardcoded to PASO. For a FINDING_TESTS entry,
+    "PASÓ" would read backwards (the test passing means a known gap was
+    confirmed to still exist, not that something works), so it gets its
+    own neutral amber label instead of green/red."""
+    if test_name in FINDING_TESTS:
+        label_text = "HALLAZGO CONFIRMADO" if is_pass else "HALLAZGO NO REPRODUCIDO"
+        label_color = COLOR_FINDING
+        font_size = 16
+        box_width = Inches(3.6)
+    else:
+        label_text = "PASÓ" if is_pass else "FALLÓ"
+        label_color = COLOR_PASS if is_pass else COLOR_FAIL
+        font_size = 24
+        box_width = Inches(1.8)
 
-    `result["outcome"]` ("passed"/"failed") is the single source of truth
-    for the PASO/FALLO label and its color -- never hardcoded to PASO.
-    """
-    test_id = result["test_id"]
-    test_name = test_id.split("::")[-1].split("[")[0]
-    outcome = result["outcome"]
-    screenshots = result.get("screenshots", [])
-
-    slide = _blank_slide(prs)
-    _add_title_text(slide, test_name, top=Inches(0.25), height=Inches(0.7), size=22)
-
-    # PASO/FALLO badge, top-right, color driven strictly by outcome.
-    is_pass = outcome == "passed"
-    label_text = "PASÓ" if is_pass else "FALLÓ"
-    label_color = COLOR_PASS if is_pass else COLOR_FAIL
-    badge = slide.shapes.add_textbox(SLIDE_WIDTH - Inches(2.2), Inches(0.25), Inches(1.8), Inches(0.6))
+    badge = slide.shapes.add_textbox(SLIDE_WIDTH - Inches(0.4) - box_width, Inches(0.25), box_width, Inches(0.6))
     tf = badge.text_frame
     p = tf.paragraphs[0]
     p.alignment = PP_ALIGN.RIGHT
     run = p.add_run()
     run.text = label_text
-    run.font.size = Pt(24)
+    run.font.size = Pt(font_size)
     run.font.bold = True
     run.font.color.rgb = label_color
 
+
+def _step_label(screenshot_path, test_name):
+    """Extracts the descriptive step name a test gave save_evidence(), e.g.
+    'evidence/test_foo__02_invoice_created.png' -> '02 invoice created'.
+    Falls back to the bare filename if the expected '{test_name}__' prefix
+    isn't there, so a slide never ships with no label at all."""
+    filename = Path(screenshot_path).stem
+    prefix = f"{test_name}__"
+    step = filename[len(prefix):] if filename.startswith(prefix) else filename
+    return step.replace("_", " ")
+
+
+def build_result_slides(prs, result):
+    """One or more slides per entry in results.json: an intro slide with the
+    test name and PASO/FALLO badge, then ONE SLIDE PER SCREENSHOT -- each
+    large enough to actually read on a projector, labeled with its step name
+    (from the evidence filename) so it's never an unlabeled image next to a
+    bare "PASÓ". Putting 3-4 screenshots side by side on one slide (the
+    previous layout) shrank each one to ~3in wide, too small to read any UI
+    text in it -- this trades slide count for legibility on purpose.
+    """
+    test_id = result["test_id"]
+    test_name = test_id.split("::")[-1].split("[")[0]
+    outcome = result["outcome"]
+    screenshots = result.get("screenshots", [])
+    is_pass = outcome == "passed"
+
+    intro = _blank_slide(prs)
+    _add_title_text(intro, test_name, top=Inches(0.25), height=Inches(0.7), size=22)
+    _add_outcome_badge(intro, is_pass, test_name)
+
     if not screenshots:
-        empty = slide.shapes.add_textbox(Inches(0.4), Inches(1.2), SLIDE_WIDTH - Inches(0.8), Inches(0.6))
+        empty = intro.shapes.add_textbox(Inches(0.4), Inches(1.2), SLIDE_WIDTH - Inches(0.8), Inches(0.6))
         run = empty.text_frame.paragraphs[0].add_run()
         run.text = "(sin capturas registradas)"
         run.font.size = Pt(16)
         run.font.italic = True
         return
 
-    # Lay screenshots out in a row (up to 4), scaled to fit the slide.
-    n = len(screenshots)
-    top = Inches(1.2)
+    count_note = intro.shapes.add_textbox(Inches(0.4), Inches(1.2), SLIDE_WIDTH - Inches(0.8), Inches(0.6))
+    run = count_note.text_frame.paragraphs[0].add_run()
+    run.text = f"{len(screenshots)} captura(s) — una por diapositiva a continuación"
+    run.font.size = Pt(16)
+    run.font.italic = True
+
+    # Large, legible image area: 16:9 (matches the 1280x720 screenshots
+    # exactly), sized to the available slide space minus title/label room.
+    img_top = Inches(1.35)
     available_width = SLIDE_WIDTH - Inches(0.8)
-    available_height = SLIDE_HEIGHT - top - Inches(0.4)
-    gap = Inches(0.15)
-    img_width = (available_width - gap * (n - 1)) / n
-    # Cap each image's width so a single/few-screenshot slide doesn't blow
-    # up beyond a readable max, and respect the 16:9 aspect of a 1280x720 shot.
-    max_img_width = Inches(4.6)
-    if img_width > max_img_width:
-        img_width = max_img_width
+    available_height = SLIDE_HEIGHT - img_top - Inches(0.3)
+    img_width = available_width
     img_height = img_width * 720 / 1280
     if img_height > available_height:
         img_height = available_height
         img_width = img_height * 1280 / 720
-
-    total_width = img_width * n + gap * (n - 1)
-    left = (SLIDE_WIDTH - total_width) / 2
+    img_left = (SLIDE_WIDTH - img_width) / 2
 
     for shot in screenshots:
+        slide = _blank_slide(prs)
+        _add_title_text(slide, test_name, top=Inches(0.25), height=Inches(0.55), size=20)
+        _add_outcome_badge(slide, is_pass, test_name)
+
+        step_box = slide.shapes.add_textbox(Inches(0.4), Inches(0.85), SLIDE_WIDTH - Inches(0.8), Inches(0.45))
+        run = step_box.text_frame.paragraphs[0].add_run()
+        run.text = f"Paso: {_step_label(shot, test_name)}"
+        run.font.size = Pt(18)
+        run.font.bold = True
+        run.font.color.rgb = COLOR_DARK
+
         img_path = TESTS_DIR / shot
         if img_path.exists():
-            slide.shapes.add_picture(str(img_path), Emu(int(left)), top, width=Emu(int(img_width)), height=Emu(int(img_height)))
+            slide.shapes.add_picture(str(img_path), Emu(int(img_left)), img_top, width=Emu(int(img_width)), height=Emu(int(img_height)))
         else:
-            missing = slide.shapes.add_textbox(Emu(int(left)), top, Emu(int(img_width)), Emu(int(img_height)))
+            missing = slide.shapes.add_textbox(Emu(int(img_left)), img_top, Emu(int(img_width)), Emu(int(img_height)))
             run = missing.text_frame.paragraphs[0].add_run()
             run.text = f"(imagen no encontrada: {shot})"
             run.font.size = Pt(12)
             run.font.italic = True
-        left += img_width + gap
 
 
 def iter_top_level_test_functions(source, tree):
@@ -219,6 +271,34 @@ def build_code_slide(prs, filename, function_name, code_text):
         run.font.color.rgb = COLOR_DARK
 
 
+def build_code_section_divider(prs):
+    """Explains what the following slides are, so a viewer flipping from
+    the last screenshot straight into source code isn't left guessing --
+    this was confusing before this divider existed."""
+    slide = _blank_slide(prs)
+    _add_title_text(
+        slide,
+        "Código fuente de las pruebas automatizadas",
+        top=Inches(2.6),
+        height=Inches(1.0),
+        size=32,
+        align=PP_ALIGN.CENTER,
+    )
+    subtitle = slide.shapes.add_textbox(Inches(1.2), Inches(3.7), SLIDE_WIDTH - Inches(2.4), Inches(1.5))
+    tf = subtitle.text_frame
+    tf.word_wrap = True
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.CENTER
+    run = p.add_run()
+    run.text = (
+        "A continuación, el código exacto de cada prueba mostrada arriba -- "
+        "una diapositiva por función de prueba, para evidenciar precisamente "
+        "qué se validó en cada escenario, no solo el resultado."
+    )
+    run.font.size = Pt(18)
+    run.font.color.rgb = COLOR_DARK
+
+
 def build_closing_code_slides(prs):
     for filename in CODE_FILES:
         path = TESTS_DIR / filename
@@ -246,8 +326,9 @@ def main():
     build_title_slide(prs)
 
     for result in results:
-        build_result_slide(prs, result)
+        build_result_slides(prs, result)
 
+    build_code_section_divider(prs)
     build_closing_code_slides(prs)
 
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)

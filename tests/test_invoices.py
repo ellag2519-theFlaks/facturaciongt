@@ -17,9 +17,13 @@ def _unique_sku():
     return f"SKU-{uuid.uuid4().hex[:8]}"
 
 
-def _create_product_via_ui(page, name, sku, price, stock, category=""):
+def _create_product_via_ui(page, name, sku, price, stock, category="General"):
     """Create a product as whoever is currently logged in (must be admin).
-    Assumes the "Nuevo producto" button is currently visible."""
+    Assumes the "Nuevo producto" button is currently visible. Category
+    defaults to a non-empty value so it's always visibly filled in the
+    recorded video/evidence -- these tests don't care about its value,
+    but leaving the field untouched on screen reads as broken to anyone
+    watching the recording."""
     page.get_by_role("button", name="Nuevo producto").click()
     page.get_by_label("Nombre").fill(name)
     page.get_by_label("SKU").fill(sku)

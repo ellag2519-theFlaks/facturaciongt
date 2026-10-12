@@ -30,12 +30,14 @@ def _unique_sku():
     return f"SKU-{uuid.uuid4().hex[:8]}"
 
 
-def _create_product_via_ui(page, name, sku, price, stock):
+def _create_product_via_ui(page, name, sku, price, stock, category="General"):
     page.get_by_role("button", name="Nuevo producto").click()
     page.get_by_label("Nombre").fill(name)
     page.get_by_label("SKU").fill(sku)
     page.get_by_label("Precio").fill(str(price))
     page.get_by_label("Stock").fill(str(stock))
+    if category:
+        page.get_by_label("Categoría").fill(category)
     page.get_by_role("button", name="Crear").click()
     # The products table is client-side paginated (ProductsPage/Pagination),
     # and after months of accumulated test runs the catalog now spans many
