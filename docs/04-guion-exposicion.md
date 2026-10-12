@@ -105,9 +105,12 @@ end-to-end con Playwright controlando un navegador real:
   real de internet: crea una factura en dólares, lo que hace que el
   backend llame al `exchange-service` real, y este a su vez al Banco de
   Guatemala real — las demás pruebas son 100% offline.
-- `test_compatibility_pruebas_no_funcionales.py` documenta un hallazgo real (no corregido a
-  propósito): el Navbar se desborda horizontalmente en un viewport móvil
-  de 375px. `test_volume_pruebas_no_funcionales.py` siembra 110 facturas sintéticas vía API para
+- `test_compatibility_pruebas_no_funcionales.py` originalmente documentó un hallazgo real (el
+  Navbar se desbordaba horizontalmente en un viewport móvil de 375px, a
+  propósito sin corregir); tras reportarse el mismo síntoma desde un
+  dispositivo real y corregirse el 2026-10-12, sus 2 pruebas se invirtieron
+  a pruebas de regresión que confirman que ya NO desborda.
+  `test_volume_pruebas_no_funcionales.py` siembra 110 facturas sintéticas vía API para
   probar el historial bajo volumen, sin depender de datos acumulados por
   casualidad.
 - Cada prueba grabada en video (con `--slowmo=600`, una pausa deliberada
@@ -145,32 +148,38 @@ end-to-end con Playwright controlando un navegador real:
    cómo se calculan subtotal, IVA 12% y total en vivo, y crear la factura.
 5. Volver a `/products` (como admin) y mostrar que el stock bajó de `5` a
    `3`.
-6. Volver a `/invoices/new` (como admin, sin cambiar de sesión — admin
+6. En esa misma fila, clic en **Eliminar**: mostrar que el backend lo
+   rechaza con el mensaje "No se puede eliminar un producto que ya ha sido
+   facturado" — protección de integridad referencial intencional (hay
+   facturas reales que referencian este producto; borrarlo rompería su
+   historial), no una limitación del formulario.
+7. Volver a `/invoices/new` (como admin, sin cambiar de sesión — admin
    también puede crear facturas) y crear otra factura con ese mismo
    producto, con cantidad `1`, pero esta vez eligiendo **Dólares** en el
    selector "Moneda de pago" antes de enviar. El formulario sigue
    mostrando subtotal, IVA 12% y total **en Quetzales** igual que antes —
    la conversión a dólares la hace el backend, no se ve todavía en el
    formulario.
-7. Ir a `/invoices` (historial): mostrar que la fila de esa factura, junto
+8. Ir a `/invoices` (historial): mostrar que la fila de esa factura, junto
    al total en Quetzales, ahora incluye el equivalente en dólares y la
    tasa del día usada (formato `(≈ $X.XX USD, tasa: Y)`) — las facturas en
    Quetzales no muestran esa parte.
-8. Hacer clic en **Ver detalle** de esa factura y mostrar, en el bloque de
+9. Hacer clic en **Ver detalle** de esa factura y mostrar, en el bloque de
    totales, la fila "Equivalente" con el mismo monto en dólares y la misma
    tasa — el mismo dato que en el historial, ahora en la vista individual.
-9. Repetir la creación de una factura pero pidiendo **más cantidad de la
-   disponible** (por ejemplo, `10` cuando solo hay `2`): mostrar que el
-   botón de envío se deshabilita solo, y que si se fuerza la petición al
-   backend, este la rechaza con `INSUFFICIENT_STOCK` sin tocar el stock.
-10. Ir a `/invoices` como vendedor: mostrar que solo aparece su propia
+10. Repetir la creación de una factura pero pidiendo **más cantidad de la
+    disponible** (por ejemplo, `10` cuando solo hay `2`): mostrar que el
+    botón de envío se deshabilita solo, y que si se fuerza la petición al
+    backend, este la rechaza con `INSUFFICIENT_STOCK` sin tocar el stock.
+11. Ir a `/invoices` como vendedor: mostrar que solo aparece su propia
     factura.
-11. Iniciar sesión como admin y volver a `/invoices`: mostrar que ahora
+12. Iniciar sesión como admin y volver a `/invoices`: mostrar que ahora
     aparecen **todas** las facturas, con la columna "Vendedor" indicando
     quién generó cada una.
-12. Cerrar la demo mostrando `tests/reports/report.html` (resultado de la
-    suite completa) y una diapositiva de `tests/reports/evidencia.pptx`
-    con la evidencia del mismo flujo que se acaba de demostrar en vivo.
+13. Cerrar la demo mostrando `tests/reports/dashboard.html` (el reporte
+    navegable con tipo/escenario/resultado/video de cada prueba) y una
+    diapositiva de `tests/reports/evidencia.pptx` con la evidencia del
+    mismo flujo que se acaba de demostrar en vivo.
 
 ## 10. Automatización con Jenkins — guion paso a paso
 
@@ -197,14 +206,14 @@ debilitar esa protección.
 1. Abrir `http://localhost:8081` y mostrar el panel principal de Jenkins,
    con el job `FacturacionGT-Pipeline` y su historial de builds.
 2. Entrar al job y mostrar el `Jenkinsfile` (pestaña "Pipeline" en la
-   configuración) — explicar brevemente las 7 etapas.
+   configuración) — explicar brevemente las 8 etapas.
 3. Clic en **"Construir ahora"** — mostrar la ejecución en tiempo real
    (Console Output), señalando cómo cada etapa aparece en el "Pipeline
    Overview".
 4. Cuando termine (✅ verde, "Finished: SUCCESS"), abrir **"Resultado de
    los tests"**: mostrar "98 — All tests are passing!", con el desglose
    por paquete.
-5. Abrir **"Artefactos Generados"**: mostrar `dashboard.html` (el reporte
+5. Abrir **"Artefactos de la compilación"**: mostrar `dashboard.html` (el reporte
    principal, con tipo/escenario/resultado/video de cada prueba y el
    enlace al PPTX), `evidencia.pptx`, `report.html`, la carpeta `videos/`
    y `evidence/` — los mismos archivos que ya se mostraron en la Sección
@@ -213,8 +222,8 @@ debilitar esa protección.
    (un solo valor esperado, p. ej. cambiar `75` por `999` en la primera
    prueba) y guardar — aclarar en voz alta que es un cambio deliberado y
    reversible, solo en el código de la prueba, no en datos reales.
-7. Clic en **"Construir ahora"** de nuevo — dejar que falle (etapa 3,
-   backend, falla en segundos; las etapas 4-7 se saltan automáticamente
+7. Clic en **"Construir ahora"** de nuevo — dejar que falle (etapa 4,
+   backend, falla en segundos; las etapas 5-8 se saltan automáticamente
    con el mensaje "skipped due to earlier failure(s)").
 8. Mostrar el build en rojo ("Finished: FAILURE") y entrar a **"Resultado
    de los tests"**: Jenkins marca la prueba específica como fallida y la
