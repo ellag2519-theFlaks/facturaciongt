@@ -97,7 +97,7 @@ error reutilizable.
 Además del software, el proyecto entrega un pipeline de pruebas
 end-to-end con Playwright controlando un navegador real:
 
-- 7 archivos de prueba, 19 escenarios en total (`test_auth_pruebas_funcionales.py`,
+- 7 archivos de prueba, 20 escenarios en total (`test_auth_pruebas_funcionales.py`,
   `test_products_pruebas_funcionales.py`, `test_invoices_pruebas_funcionales.py`, `test_stock_limits_pruebas_funcionales.py`,
   `test_usd_payment_pruebas_funcionales.py`, `test_compatibility_pruebas_no_funcionales.py`, `test_volume_pruebas_no_funcionales.py`), cada
   uno cubriendo un flujo de negocio completo, no clics sueltos.
@@ -176,7 +176,7 @@ end-to-end con Playwright controlando un navegador real:
 
 El proyecto tiene instalado Jenkins LTS localmente (`http://localhost:8081`),
 con un pipeline (`Jenkinsfile`, 8 etapas) que corre toda la batería de
-pruebas — 63 pruebas de backend (`node:test`) y 19 E2E (Playwright) — y
+pruebas — 78 pruebas de backend (`node:test`) y 20 E2E (Playwright) — y
 publica los resultados individuales en Jenkins vía el plugin JUnit, además
 de archivar videos, capturas, el reporte HTML y la presentación PPTX.
 
@@ -202,12 +202,13 @@ debilitar esa protección.
    (Console Output), señalando cómo cada etapa aparece en el "Pipeline
    Overview".
 4. Cuando termine (✅ verde, "Finished: SUCCESS"), abrir **"Resultado de
-   los tests"**: mostrar "82 — All tests are passing!", con el desglose
+   los tests"**: mostrar "98 — All tests are passing!", con el desglose
    por paquete.
-5. Abrir **"Artefactos Generados"**: mostrar `evidencia.pptx`,
-   `report.html`, la carpeta `videos/` y `evidence/` — los mismos
-   archivos que ya se mostraron en la Sección 9, ahora generados y
-   guardados automáticamente por Jenkins, no a mano.
+5. Abrir **"Artefactos Generados"**: mostrar `dashboard.html` (el reporte
+   principal, con tipo/escenario/resultado/video de cada prueba y el
+   enlace al PPTX), `evidencia.pptx`, `report.html`, la carpeta `videos/`
+   y `evidence/` — los mismos archivos que ya se mostraron en la Sección
+   9, ahora generados y guardados automáticamente por Jenkins, no a mano.
 6. **Simulación de fallo controlado:** editar `computeTotals.test.js`
    (un solo valor esperado, p. ej. cambiar `75` por `999` en la primera
    prueba) y guardar — aclarar en voz alta que es un cambio deliberado y
@@ -221,7 +222,7 @@ debilitar esa protección.
 9. Revertir el cambio en `computeTotals.test.js` (volver `999` a `75`) y
    guardar.
 10. Clic en **"Construir ahora"** una última vez — mostrar que vuelve a
-    quedar en verde, con las 82 pruebas pasando de nuevo.
+    quedar en verde, con las 98 pruebas pasando de nuevo.
 11. Cerrar mostrando el historial de builds del job (columna izquierda),
     señalando la secuencia visible: éxito → fallo → éxito — evidencia de
     que Jenkins detecta, reporta, y permite corregir sin ambigüedad.

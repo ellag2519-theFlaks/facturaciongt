@@ -55,3 +55,19 @@ test('invoice detail includes the creating user\'s username', async () => {
   const res = await request(app).get(`/api/invoices/${vendedorInvoiceId}`).set('Authorization', `Bearer ${vendedorToken}`)
   assert.equal(res.body.created_by_username, 'vendedor')
 })
+
+test('fetching a nonexistent invoice id returns 404, not a raw 500', async () => {
+  const res = await request(app).get('/api/invoices/999999').set('Authorization', `Bearer ${adminToken}`)
+  assert.equal(res.status, 404)
+  assert.equal(res.body.error.code, 'NOT_FOUND')
+})
+
+test('fetching an invoice with a non-numeric id returns 404, not a raw 500', async () => {
+  // Number('abc') is NaN -- the controller passes it straight through to
+  // invoiceModel.findById, so this pins that a non-numeric :id segment
+  // degrades to the same clean 404 as a nonexistent one, not an uncaught
+  // driver error.
+  const res = await request(app).get('/api/invoices/abc').set('Authorization', `Bearer ${adminToken}`)
+  assert.equal(res.status, 404)
+  assert.equal(res.body.error.code, 'NOT_FOUND')
+})

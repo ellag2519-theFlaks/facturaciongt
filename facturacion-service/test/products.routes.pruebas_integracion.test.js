@@ -134,3 +134,77 @@ test('deleting a product that has never been invoiced still succeeds', async () 
   const res = await request(app).delete(`/api/products/${created.body.id}`).set('Authorization', `Bearer ${adminToken}`)
   assert.equal(res.status, 204)
 })
+
+test('creating a product with negative stock returns 400 VALIDATION_ERROR', async () => {
+  const res = await request(app).post('/api/products').set('Authorization', `Bearer ${adminToken}`)
+    .send({ name: 'Negative Stock', sku: 'NEG-1', price: 10, stock: -1 })
+  assert.equal(res.status, 400)
+  assert.equal(res.body.error.code, 'VALIDATION_ERROR')
+})
+
+test('updating a product with negative stock returns 400 VALIDATION_ERROR', async () => {
+  const created = await request(app).post('/api/products').set('Authorization', `Bearer ${adminToken}`)
+    .send({ name: 'Negative Stock 2', sku: 'NEG-2', price: 10, stock: 3 })
+  const res = await request(app).put(`/api/products/${created.body.id}`).set('Authorization', `Bearer ${adminToken}`)
+    .send({ name: 'Negative Stock 2', sku: 'NEG-2', price: 10, stock: -3 })
+  assert.equal(res.status, 400)
+  assert.equal(res.body.error.code, 'VALIDATION_ERROR')
+})
+
+test('a price of exactly 0 is rejected with 400 (boundary, not just negative prices)', async () => {
+  const res = await request(app).post('/api/products').set('Authorization', `Bearer ${adminToken}`)
+    .send({ name: 'Free', sku: 'FREE-1', price: 0, stock: 1 })
+  assert.equal(res.status, 400)
+  assert.equal(res.body.error.code, 'VALIDATION_ERROR')
+})
+
+test('creating a product with a missing price returns 400 VALIDATION_ERROR, not a raw 500', async () => {
+  const res = await request(app).post('/api/products').set('Authorization', `Bearer ${adminToken}`)
+    .send({ name: 'No Price', sku: 'NO-PRICE-1', stock: 1 })
+  assert.equal(res.status, 400)
+  assert.equal(res.body.error.code, 'VALIDATION_ERROR')
+})
+
+test('creating a product with a missing stock returns 400 VALIDATION_ERROR, not a raw 500', async () => {
+  const res = await request(app).post('/api/products').set('Authorization', `Bearer ${adminToken}`)
+    .send({ name: 'No Stock', sku: 'NO-STOCK-1', price: 10 })
+  assert.equal(res.status, 400)
+  assert.equal(res.body.error.code, 'VALIDATION_ERROR')
+})
+
+test('adjusting stock below zero is rejected with 400, and stock is left unchanged', async () => {
+  const created = await request(app).post('/api/products').set('Authorization', `Bearer ${adminToken}`)
+    .send({ name: 'Low Stock', sku: 'LOW-1', price: 10, stock: 2 })
+  const res = await request(app).patch(`/api/products/${created.body.id}/stock`).set('Authorization', `Bearer ${adminToken}`)
+    .send({ delta: -5 })
+  assert.equal(res.status, 400)
+  assert.equal(res.body.error.code, 'VALIDATION_ERROR')
+
+  const unchanged = await request(app).get(`/api/products/${created.body.id}`).set('Authorization', `Bearer ${adminToken}`)
+  assert.equal(unchanged.body.stock, 2)
+})
+
+test('fetching a nonexistent product id returns 404, not a raw 500', async () => {
+  const res = await request(app).get('/api/products/999999').set('Authorization', `Bearer ${adminToken}`)
+  assert.equal(res.status, 404)
+  assert.equal(res.body.error.code, 'PRODUCT_NOT_FOUND')
+})
+
+test('fetching a product with a non-numeric id returns 404, not a raw 500', async () => {
+  const res = await request(app).get('/api/products/abc').set('Authorization', `Bearer ${adminToken}`)
+  assert.equal(res.status, 404)
+  assert.equal(res.body.error.code, 'PRODUCT_NOT_FOUND')
+})
+
+test('updating a nonexistent product id returns 404, not a raw 500', async () => {
+  const res = await request(app).put('/api/products/999999').set('Authorization', `Bearer ${adminToken}`)
+    .send({ name: 'Ghost', sku: 'GHOST-1', price: 10, stock: 1 })
+  assert.equal(res.status, 404)
+  assert.equal(res.body.error.code, 'PRODUCT_NOT_FOUND')
+})
+
+test('deleting a nonexistent product id returns 404, not a raw 500', async () => {
+  const res = await request(app).delete('/api/products/999999').set('Authorization', `Bearer ${adminToken}`)
+  assert.equal(res.status, 404)
+  assert.equal(res.body.error.code, 'PRODUCT_NOT_FOUND')
+})

@@ -202,7 +202,7 @@ Esto:
    cumplen: `test_auth_pruebas_funcionales.py`, `test_products_pruebas_funcionales.py`,
    `test_invoices_pruebas_funcionales.py`, `test_stock_limits_pruebas_funcionales.py`,
    `test_usd_payment_pruebas_funcionales.py`, `test_compatibility_pruebas_no_funcionales.py`,
-   `test_volume_pruebas_no_funcionales.py`; 19 pruebas en total) contra la
+   `test_volume_pruebas_no_funcionales.py`; 20 pruebas en total) contra la
    app real, grabando un video por prueba en `tests/videos/` y screenshots
    por escenario en `tests/evidence/`.
 2. Genera `tests/reports/report.html` (resultado pasa/falla + duración) y

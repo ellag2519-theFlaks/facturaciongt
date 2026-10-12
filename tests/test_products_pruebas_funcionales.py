@@ -7,7 +7,13 @@ collide with data left behind by earlier runs against the same database.
 """
 import uuid
 
-from conftest import ADMIN_USER, BASE_URL, VENDEDOR_USER, login, save_evidence
+from conftest import ADMIN_USER, API_BASE_URL, BASE_URL, VENDEDOR_USER, login, save_evidence
+
+
+def _get_token(request_context, username, password):
+    res = request_context.post(f"{API_BASE_URL}/auth/login", data={"username": username, "password": password})
+    assert res.ok, f"login failed: {res.status} {res.text()}"
+    return res.json()["token"]
 
 
 def _unique_sku():
@@ -121,6 +127,64 @@ def test_admin_duplicate_sku_shows_inline_error(page):
     assert sku_error.is_visible()
     # The rejected submission must not have created a second product.
     assert page.locator("tr", has_text=name_duplicate).count() == 0
+
+
+def test_admin_delete_invoiced_product_shows_inline_error(page):
+    """Backend rejects this with 409 PRODUCT_IN_USE (see
+    facturacion-service/test/products.routes.pruebas_integracion.test.js,
+    "deleting a product that has been invoiced"); this is the matching E2E
+    check that the UI surfaces that rejection instead of silently failing
+    or removing the row. First observed manually in the "Pruebas
+    responsive" recording (2026-10-12) -- this automates it.
+    """
+    login(page, *ADMIN_USER)
+    page.goto(f"{BASE_URL}/products")
+
+    name = f"Producto Facturado {uuid.uuid4().hex[:6]}"
+    sku = _unique_sku()
+    _create_product_via_ui(page, name, sku, 25, 5)
+
+    row = _find_product_row(page, sku)
+    row.wait_for()
+
+    # The table itself has no data-id attribute, so look the product back
+    # up by its (unique) sku via the API this page already reads from.
+    admin_token = _get_token(page.request, *ADMIN_USER)
+    products_res = page.request.get(
+        f"{API_BASE_URL}/products", headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    assert products_res.ok, f"product lookup failed: {products_res.status} {products_res.text()}"
+    product_id = next(p["id"] for p in products_res.json() if p["sku"] == sku)
+
+    # Invoice the product via the API (a vendedor action) so the delete
+    # attempt below has a real invoice_items reference to collide with --
+    # driving a full UI checkout flow here would only be re-testing
+    # test_invoices_pruebas_funcionales.py, not this page's behavior.
+    vendedor_token = _get_token(page.request, *VENDEDOR_USER)
+    invoice_res = page.request.post(
+        f"{API_BASE_URL}/invoices",
+        headers={"Authorization": f"Bearer {vendedor_token}"},
+        data={
+            "customer_name": f"Cliente {uuid.uuid4().hex[:6]}",
+            "items": [{"product_id": product_id, "quantity": 1}],
+        },
+    )
+    assert invoice_res.ok, f"invoice creation failed: {invoice_res.status} {invoice_res.text()}"
+
+    page.reload()
+    row = _find_product_row(page, sku)
+    row.wait_for()
+
+    page.once("dialog", lambda dialog: dialog.accept())
+    row.get_by_role("button", name="Eliminar").click()
+
+    error_banner = page.locator("div[role='alert']", has_text="No se puede eliminar un producto que ya ha sido facturado")
+    error_banner.wait_for()
+    save_evidence(page, "test_admin_delete_invoiced_product_shows_inline_error", "01_delete_blocked_error")
+
+    assert error_banner.is_visible()
+    # The rejected delete must not have removed the row.
+    assert _find_product_row(page, sku).count() == 1
 
 
 def test_vendedor_redirected_from_products(page):
