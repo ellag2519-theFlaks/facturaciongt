@@ -14,7 +14,18 @@
 // está organizada hoy la suite, en vez de inventar una separación que no
 // existe en el código.
 pipeline {
-    agent any
+    // customWorkspace apunta directo a la carpeta real del proyecto en vez
+    // de que Jenkins clone el repo a su propio workspace -- el proyecto no
+    // tiene remoto, y Jenkins rechaza por seguridad los checkouts de git
+    // sobre rutas locales del sistema de archivos a menos que se debilite
+    // esa protección explícitamente. Operar directamente sobre la carpeta
+    // real evita el checkout por completo, sin tocar esa protección.
+    agent {
+        node {
+            label ''
+            customWorkspace 'C:/Users/ellag/OneDrive/Escritorio/Universidad/8vo. Semestre/Analisis II/Proyecto de facturación'
+        }
+    }
 
     options {
         timestamps()
